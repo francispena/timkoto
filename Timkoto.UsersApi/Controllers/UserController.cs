@@ -36,19 +36,16 @@ namespace Timkoto.UsersApi.Controllers
             };
 
             var result = await _userService.AddUser(user, traceId, messages);
-            
+
             if (result.ResponseCode == HttpStatusCode.OK)
             {
                 return Ok(result);
             }
-            else if (result.ResponseCode == HttpStatusCode.Forbidden)
+            if (result.ResponseCode == HttpStatusCode.Forbidden)
             {
                 return StatusCode(403, result);
             }
-            else
-            {
-                return StatusCode(500, result);
-            }
+            return StatusCode(500, result);
         }
     }
 }

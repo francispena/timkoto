@@ -10,7 +10,7 @@
     }
   },
   "Conditions": {
-   
+     "isProd" : {"Fn::Equals": [{"Ref": "Environment"}, "Production"]}
   },
   "Resources": {
     "AspNetCoreFunction": {
@@ -22,7 +22,7 @@
         "MemorySize": 256,
         "Timeout": 30,
         "Role": "arn:aws:iam::185075008698:role/lambda-vpc-role",
-        "FunctionName":"TimkotoUsersApi_DEV",
+        "FunctionName": {"Fn::If": ["isProd", "TimkotoUsersApi_PROD", "TimkotoUsersApi_DEV"]},
         "Policies": [
           "AWSLambdaFullAccess"
         ],

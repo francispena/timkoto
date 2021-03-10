@@ -1,14 +1,17 @@
 using System;
 using System.IO;
+using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 using NHibernate;
+using Org.BouncyCastle.Asn1.X509;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Extensions;
@@ -53,8 +56,14 @@ namespace Timkoto.UsersApi
 
             services.AddControllers();
 
+            services.AddSwaggerGen(_ =>
+            {
+                _.SwaggerDoc("v1", new OpenApiInfo {Title = "TimKoTo API", Version = "v1"});
+                _.ResolveConflictingActions(__ => __.First());
+            });
+                
             // Add S3 to the ASP.NET Core dependency injection framework.
-            services.AddAWSService<Amazon.S3.IAmazonS3>();
+            //services.AddAWSService<Amazon.S3.IAmazonS3>();
             
             services.AddNHibernate(connectionString);
 
@@ -84,6 +93,17 @@ namespace Timkoto.UsersApi
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.UseSwagger(c =>
+            {
+                c.RouteTemplate = "swagger/{documentName}/swagger.json";
+            });
+
+            app.UseSwaggerUI(_ =>
+            {
+                var swaggerJsonBasePath = string.IsNullOrWhiteSpace(_.RoutePrefix) ? "." : "..";
+                _.SwaggerEndpoint(url: $"{swaggerJsonBasePath}/swagger/v1/swagger.json", name: "TimKoTo API V1");
+            });
 
             app.UseHttpsRedirection();
 
