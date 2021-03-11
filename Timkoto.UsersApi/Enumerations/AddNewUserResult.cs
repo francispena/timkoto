@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace Timkoto.UsersApi.Enumerations
+﻿namespace Timkoto.UsersApi.Enumerations
 {
     public enum AddNewUserResult
     {
         NewUserCreated,
 
-        EmailAddressExists
+        EmailAddressExists,
+
+        InvalidRegistrationCode
     }
 }

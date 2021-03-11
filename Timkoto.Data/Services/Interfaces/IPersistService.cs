@@ -1,4 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Timkoto.Data.Services.Interfaces
 {
@@ -13,7 +16,7 @@ namespace Timkoto.Data.Services.Interfaces
         /// <typeparam name="T"></typeparam>
         /// <param name="data">The data.</param>
         /// <returns></returns>
-        Task<double> Save<T>(T data);
+        Task<long> Save<T>(T data);
 
         /// <summary>
         /// Update the specified data.
@@ -30,5 +33,21 @@ namespace Timkoto.Data.Services.Interfaces
         /// <param name="data">The data.</param>
         /// <returns></returns>
         Task<bool> Delete<T>(T data);
+
+        /// <summary>
+        /// Finds the one.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="expressionFunc">The expression function.</param>
+        /// <returns></returns>
+        Task<T> FindOne<T>(Expression<Func<T, bool>> expressionFunc) where T : class;
+
+        /// <summary>
+        /// Finds the many.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="expressionFunc">The expression function.</param>
+        /// <returns></returns>
+        Task<List<T>> FindMany<T>(Expression<Func<T, bool>> expressionFunc) where T : class;
     }
 }

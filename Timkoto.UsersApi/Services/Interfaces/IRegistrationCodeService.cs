@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Timkoto.Data.Repositories;
 using Timkoto.UsersApi.Models;
 
 namespace Timkoto.UsersApi.Services.Interfaces
 {
-    public interface IUserService
+    public interface IRegistrationCodeService
     {
-        Task<ResponseBase> AddUser(User user, string code, Guid traceId, List<string> messages);
+        Task<ResponseBase> Generate(long userId, Guid traceId, List<string> messages);
     }
 }

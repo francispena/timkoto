@@ -43,5 +43,17 @@ namespace Timkoto.UsersApi.Models
         /// The response message.
         /// </value>
         public string ResponseMessage { get; set; }
+
+        public string ExceptionMessage { get; set; }
+
+        public string ExceptionStackTrace { get; set; }
+
+        /// <summary>
+        /// Gets or sets the data.
+        /// </summary>
+        /// <value>
+        /// The data.
+        /// </value>
+        public dynamic Data { get; set; }
     }
 }

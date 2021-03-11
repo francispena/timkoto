@@ -35,6 +35,14 @@ namespace Timkoto.Data.Repositories
             Index = "phoneNumber_ix", NotNull = false)]
         public virtual string PhoneNumber { get; set; }
 
+        [Property(Name = "AgentId", Column = "agentId", TypeType = typeof(long), 
+            Index = "agentId_ix", NotNull = false)]
+        public virtual long AgentId { get; set; }
+
+        [Property(Name = "OperatorId", Column = "operatorId", TypeType = typeof(long), 
+            Index = "operatorId_ix", NotNull = false)]
+        public virtual long OperatorId { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }
@@ -42,6 +50,5 @@ namespace Timkoto.Data.Repositories
         [Property(Name = "UpdateDateTime", Column = "updateDateTime", TypeType = typeof(DateTime),
              Index = "updateDateTime_ix", NotNull = false)]
         public virtual DateTime UpdateDateTime { get; set; }
-
     }
 }

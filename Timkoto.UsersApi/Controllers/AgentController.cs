@@ -1,10 +1,8 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Net;
-using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Timkoto.Data.Enumerations;
-using Timkoto.Data.Repositories;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -12,32 +10,25 @@ namespace Timkoto.UsersApi.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class AgentController : ControllerBase
     {
-        private readonly IUserService _userService;
+        private readonly IAgentService _agentService;
 
-        public UserController(IUserService userService)
+        public AgentController(IAgentService agentService)
         {
-            _userService = userService;
+            _agentService = agentService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] AddUserRequest newUser, [FromHeader] Guid traceId)
+        [Route("{operatorId}/{agentId}")]
+        [HttpGet]
+        public async Task<IActionResult> Players([FromRoute] long operatorId, [FromRoute] long agentId, [FromHeader] Guid traceId)
         {
             var messages = new List<string>();
             ResponseBase result;
 
             try
             {
-                var user = new User
-                {
-                    Email = newUser.Email,
-                    PhoneNumber = newUser.PhoneNumber,
-                    UserName = newUser.UserName,
-                    IsActive = true
-                };
-
-                result = await _userService.AddUser(user, newUser.RegistrationCode, traceId, messages);
+                result = await _agentService.GetPlayers(operatorId, agentId, traceId, messages);
 
                 if (result.ResponseCode == HttpStatusCode.OK)
                 {
@@ -48,7 +39,6 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
-
                 result = new ResponseBase
                 {
                     IsSuccess = false,

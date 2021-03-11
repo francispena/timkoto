@@ -1,13 +1,12 @@
 ﻿using System.Runtime.Serialization;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+using System.Text.Json.Serialization;
 
 namespace Timkoto.Data.Enumerations
 {
     /// <summary>
     /// 
     /// </summary>
-    [JsonConverter(typeof(StringEnumConverter))]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum UserType
     {
         /// <summary>
@@ -17,21 +16,15 @@ namespace Timkoto.Data.Enumerations
         Operator = 1,
 
         /// <summary>
-        /// The master agent
-        /// </summary>
-        [EnumMember(Value = "MasterAgent")]
-        MasterAgent = 2,
-
-        /// <summary>
         /// The agent
         /// </summary>
         [EnumMember(Value = "Agent")]
-        Agent = 3,
+        Agent = 2,
 
         /// <summary>
         /// The player
         /// </summary>
         [EnumMember(Value = "Player")]
-        Player = 4
+        Player = 3
     }
 }

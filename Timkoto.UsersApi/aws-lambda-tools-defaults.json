@@ -14,5 +14,5 @@
     "template"      : "serverless.template",
     "template-parameters" : "\"Environment\"=\"Development\"",
     "s3-bucket"           : "timkotodev",
-    "stack-name"          : "TimkotoDev"
+    "stack-name"          : "TimkotoUser-Dev"
 }

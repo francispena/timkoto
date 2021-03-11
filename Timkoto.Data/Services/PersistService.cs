@@ -1,5 +1,8 @@
 ﻿using NHibernate;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Timkoto.Data.Services.Interfaces;
 
@@ -31,9 +34,9 @@ namespace Timkoto.Data.Services
         /// <typeparam name="T"></typeparam>
         /// <param name="data">The data.</param>
         /// <returns></returns>
-        public async Task<double> Save<T>(T data)
+        public async Task<long> Save<T>(T data)
         {
-            var retVal = 0d;
+            var retVal = 0l;
             ITransaction tx = null;
             try
             {
@@ -45,7 +48,7 @@ namespace Timkoto.Data.Services
 
                 if (result != null)
                 {
-                    retVal = double.Parse(result.ToString());
+                    retVal = long.Parse(result.ToString());
                 }
 
                 dbSession.Close();
@@ -145,6 +148,40 @@ namespace Timkoto.Data.Services
             }
 
             return retVal;
+        }
+
+        /// <summary>
+        /// Finds the one.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="expressionFunc">The expression function.</param>
+        /// <returns></returns>
+        public async Task<T> FindOne<T>(Expression<Func<T, bool>> expressionFunc) where T : class
+        {
+            return await Task.Run(() =>
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                var t = dbSession.QueryOver<T>().Where(expressionFunc).List().FirstOrDefault();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return t;
+            });
+        }
+
+        public async Task<List<T>> FindMany<T>(Expression<Func<T, bool>> expressionFunc) where T : class
+        {
+            return await Task.Run(() =>
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                var t = dbSession.QueryOver<T>().Where(expressionFunc).List().ToList();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return t;
+            });
         }
     }
 }

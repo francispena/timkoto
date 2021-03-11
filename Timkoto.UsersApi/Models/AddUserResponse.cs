@@ -7,7 +7,7 @@ namespace Timkoto.UsersApi.Models
     public class AddUserResponse: ResponseBase
     {
         public static AddUserResponse Create(bool isSuccess, Guid traceId, HttpStatusCode statusCode,
-            AddNewUserResult addNewUserResult)
+            AddNewUserResult result)
         {
             return new AddUserResponse
             {
@@ -16,8 +16,8 @@ namespace Timkoto.UsersApi.Models
                 ResponseCode = statusCode,
                 Result = new
                 {
-                    Code = addNewUserResult.ToString(),
-                    Description = GetCodeDescription(addNewUserResult)
+                    Code = result.ToString(),
+                    Description = GetCodeDescription(result)
                 }
             };
         }
@@ -30,6 +30,8 @@ namespace Timkoto.UsersApi.Models
                     return "New user created.";
                 case AddNewUserResult.EmailAddressExists:
                     return "Email address exists.";
+                case AddNewUserResult.InvalidRegistrationCode:
+                    return "Invalid Registration Code.";
             }
 
             return "";
