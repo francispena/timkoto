@@ -10,31 +10,35 @@ namespace Timkoto.UsersApi.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
-    public class RegistrationCodeController : ControllerBase
+    public class TransactionController : ControllerBase
     {
-        private readonly IRegistrationCodeService _registrationCodeService;
+        private readonly ITransactionService _transactionService;
 
-        public RegistrationCodeController(IRegistrationCodeService registrationCodeService)
+        public TransactionController(ITransactionService transactionService)
         {
-            _registrationCodeService = registrationCodeService;
+            _transactionService = transactionService;
         }
 
-        [Route("{id}")]
-        [HttpGet]
-        public async Task<IActionResult> Get([FromRoute] long id, [FromHeader] Guid traceId)
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] AddTransactionRequest newTransaction, [FromHeader] Guid traceId)
         {
+            //if (!ModelState.IsValid )
+            //{
+                
+            //}
+
             var messages = new List<string>();
             ResponseBase result;
 
             try
             {
-                result = await _registrationCodeService.Generate(id, traceId, messages);
+                result = await _transactionService.AddTransaction(newTransaction, traceId, messages);
+
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
                 result = ResponseBase.CreateErrorResponse(ex);
-
                 return StatusCode(500, result);
             }
             finally

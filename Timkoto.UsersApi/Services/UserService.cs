@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
@@ -20,16 +19,16 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<ResponseBase> AddUser(User user, string code, Guid traceId, List<string> messages)
+        public async Task<ResponseBase> AddUser(AddUserRequest request, Guid traceId, List<string> messages)
         {
             var addUserResponse = new AddUserResponse();
 
-            var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == code && _.IsActive);
+            var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
             if (registrationCode == null)
             {
                 addUserResponse =
                     AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
-                
+
                 return addUserResponse;
             }
             if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
@@ -40,12 +39,19 @@ namespace Timkoto.UsersApi.Services
                 return addUserResponse;
             }
 
-            user.OperatorId = registrationCode.OperatorId;
-            user.AgentId = registrationCode.AgentId;
-            user.UserType = registrationCode.UserType;
+            var user = new User
+            {
+                Email = request.Email,
+                PhoneNumber = request.PhoneNumber,
+                UserName = request.UserName,
+                IsActive = true,
+                OperatorId = registrationCode.OperatorId,
+                AgentId = registrationCode.AgentId,
+                UserType = registrationCode.UserType
+            };
 
             var result = await _persistService.Save(user);
-            
+
             registrationCode.IsActive = false;
             await _persistService.Update(registrationCode);
 
@@ -55,7 +61,7 @@ namespace Timkoto.UsersApi.Services
                     AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.NewUserCreated);
             }
             else if (result == -1000)
-            { 
+            {
                 addUserResponse =
                     AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.EmailAddressExists);
             }

@@ -25,7 +25,7 @@ namespace Timkoto.UsersApi.Services
         {
             GenerateCodeResponse generateCodeResponse;
 
-            var user = await _persistService.FindOne<User>(_ => _.Id == userId);
+            var user = await _persistService.FindOne<User>(_ => _.Id == userId && _.UserType != UserType.Player);
 
             if (user == null)
             {

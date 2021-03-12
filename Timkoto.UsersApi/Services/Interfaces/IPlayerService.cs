@@ -5,8 +5,8 @@ using Timkoto.UsersApi.Models;
 
 namespace Timkoto.UsersApi.Services.Interfaces
 {
-    public interface IUserService
+    public interface IPlayerService
     {
-        Task<ResponseBase> AddUser(AddUserRequest request, Guid traceId, List<string> messages);
+        Task<ResponseBase> GetPlayer(long userId, Guid traceId, List<string> messages);
     }
 }

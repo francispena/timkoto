@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace Timkoto.UsersApi.Models
 {
@@ -55,5 +56,22 @@ namespace Timkoto.UsersApi.Models
         /// The data.
         /// </value>
         public dynamic Data { get; set; }
+
+        /// <summary>
+        /// Creates the error response.
+        /// </summary>
+        /// <param name="ex">The ex.</param>
+        /// <returns></returns>
+        public static ResponseBase CreateErrorResponse(Exception ex)
+        {
+            return new ResponseBase
+            {
+                IsSuccess = false,
+                ResponseCode = HttpStatusCode.InternalServerError,
+                ResponseMessage = HttpStatusCode.InternalServerError.ToString(),
+                ExceptionMessage = ex.Message,
+                ExceptionStackTrace = ex.StackTrace
+            };
+        }
     }
 }

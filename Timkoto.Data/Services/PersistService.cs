@@ -36,7 +36,7 @@ namespace Timkoto.Data.Services
         /// <returns></returns>
         public async Task<long> Save<T>(T data)
         {
-            var retVal = 0l;
+            var retVal = 0L;
             ITransaction tx = null;
             try
             {
@@ -66,7 +66,10 @@ namespace Timkoto.Data.Services
                 {
                     retVal = -1000;
                 }
-
+                else
+                {
+                    retVal = -1001;
+                }
                 //await _logger.LogAsync("Error PersistService.Save", ex, null,
                 //    new Dictionary<string, object> { { "data", data } });
             }
@@ -176,6 +179,21 @@ namespace Timkoto.Data.Services
             {
                 var dbSession = _sessionFactory.OpenSession();
                 var t = dbSession.QueryOver<T>().Where(expressionFunc).List().ToList();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return t;
+            });
+        }
+
+        public async Task<T> FindLast<T>(Expression<Func<T, bool>> expressionFunc, Expression<Func<T, object>> sortFunc) where T : class
+        {
+            return await Task.Run(() =>
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                var t = dbSession.QueryOver<T>().Where(expressionFunc)
+                    .OrderBy(sortFunc).Desc.List().FirstOrDefault();
 
                 dbSession.Close();
                 dbSession.Dispose();

@@ -49,5 +49,15 @@ namespace Timkoto.Data.Services.Interfaces
         /// <param name="expressionFunc">The expression function.</param>
         /// <returns></returns>
         Task<List<T>> FindMany<T>(Expression<Func<T, bool>> expressionFunc) where T : class;
+
+        /// <summary>
+        /// Finds the last.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="expressionFunc">The expression function.</param>
+        /// <param name="sortFunc">The sort function.</param>
+        /// <returns></returns>
+        Task<T> FindLast<T>(Expression<Func<T, bool>> expressionFunc, Expression<Func<T, object>> sortFunc)
+            where T : class;
     }
 }

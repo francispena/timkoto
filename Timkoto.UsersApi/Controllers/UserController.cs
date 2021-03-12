@@ -1,16 +1,14 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Net;
-using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-using Timkoto.Data.Enumerations;
-using Timkoto.Data.Repositories;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/registration/v1/[controller]")]
     [ApiController]
     public class UserController : ControllerBase
     {
@@ -29,35 +27,13 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                var user = new User
-                {
-                    Email = newUser.Email,
-                    PhoneNumber = newUser.PhoneNumber,
-                    UserName = newUser.UserName,
-                    IsActive = true
-                };
+                result = await _userService.AddUser(newUser, traceId, messages);
 
-                result = await _userService.AddUser(user, newUser.RegistrationCode, traceId, messages);
-
-                if (result.ResponseCode == HttpStatusCode.OK)
-                {
-                    return Ok(result);
-                }
-                
-                return StatusCode(403, result);
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-
-                result = new ResponseBase
-                {
-                    IsSuccess = false,
-                    ResponseCode = HttpStatusCode.InternalServerError,
-                    ResponseMessage = HttpStatusCode.InternalServerError.ToString(),
-                    ExceptionMessage = ex.Message,
-                    ExceptionStackTrace = ex.StackTrace
-                };
-
+                result = ResponseBase.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally

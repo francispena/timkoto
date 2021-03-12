@@ -30,23 +30,11 @@ namespace Timkoto.UsersApi.Controllers
             {
                 result = await _agentService.GetPlayers(operatorId, agentId, traceId, messages);
 
-                if (result.ResponseCode == HttpStatusCode.OK)
-                {
-                    return Ok(result);
-                }
-                
-                return StatusCode(403, result);
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = new ResponseBase
-                {
-                    IsSuccess = false,
-                    ResponseCode = HttpStatusCode.InternalServerError,
-                    ResponseMessage = HttpStatusCode.InternalServerError.ToString(),
-                    ExceptionMessage = ex.Message,
-                    ExceptionStackTrace = ex.StackTrace
-                };
+                result = ResponseBase.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
             }

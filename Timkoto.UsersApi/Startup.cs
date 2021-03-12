@@ -8,9 +8,9 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json.Serialization;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Extensions;
@@ -57,6 +57,29 @@ namespace Timkoto.UsersApi
             {
                 _.SwaggerDoc("v1", new OpenApiInfo {Title = "TimKoTo API", Version = "v1"});
                 _.ResolveConflictingActions(__ => __.First());
+
+                _.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+                {
+                    Description = "Enter your Api Key below:",
+                    Name = "x-api-key",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey
+                });
+
+                _.AddSecurityRequirement(new OpenApiSecurityRequirement()
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "ApiKey"
+                            },
+                        },
+                        new List<string>()
+                    }
+                });
             });
 
             services.AddNHibernate(connectionString);
@@ -65,7 +88,9 @@ namespace Timkoto.UsersApi
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<IRegistrationCodeService, RegistrationCodeService>();
             services.AddTransient<IAgentService, AgentService>();
-            
+            services.AddTransient<ITransactionService, TransactionService>();
+            services.AddTransient<IPlayerService, PlayerService>();
+
             //services.AddSingleton(typeof(DbManager));
             //services.AddTransient<ISessionFactory>(_ =>
             //{
