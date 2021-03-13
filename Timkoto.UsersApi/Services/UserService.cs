@@ -52,11 +52,11 @@ namespace Timkoto.UsersApi.Services
 
             var result = await _persistService.Save(user);
 
-            registrationCode.IsActive = false;
-            await _persistService.Update(registrationCode);
-
             if (result > 0)
             {
+                registrationCode.IsActive = false;
+                await _persistService.Update(registrationCode);
+
                 addUserResponse =
                     AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.NewUserCreated);
             }

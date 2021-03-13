@@ -43,5 +43,30 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
+        [Route("{operatorId}/{agentId}")]
+        [HttpGet]
+        public async Task<IActionResult> Players([FromRoute] long operatorId, [FromRoute] long agentId, [FromHeader] Guid traceId)
+        {
+            var messages = new List<string>();
+            ResponseBase result;
+
+            try
+            {
+                result = await _playerService.GetPlayers(operatorId, agentId, traceId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = ResponseBase.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

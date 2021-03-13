@@ -14,6 +14,8 @@ using System.Linq;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Extensions;
+using Timkoto.UsersApi.Infrastructure;
+using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Services;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -90,6 +92,7 @@ namespace Timkoto.UsersApi
             services.AddTransient<IAgentService, AgentService>();
             services.AddTransient<ITransactionService, TransactionService>();
             services.AddTransient<IPlayerService, PlayerService>();
+            services.AddTransient<IHttpService, HttpService>();
 
             //services.AddSingleton(typeof(DbManager));
             //services.AddTransient<ISessionFactory>(_ =>
@@ -124,8 +127,12 @@ namespace Timkoto.UsersApi
                 _.SwaggerEndpoint(url: $"{swaggerJsonBasePath}/swagger/v1/swagger.json", name: "TimKoTo API V1");
             });
 
-            app.UseHttpsRedirection();
+            app.UseCors(_ => _.WithOrigins("*")
+                .AllowAnyMethod()
+                .AllowAnyHeader());
 
+            app.UseHttpsRedirection();
+            
             app.UseRouting();
 
             app.UseAuthorization();

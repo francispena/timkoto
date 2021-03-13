@@ -8,7 +8,7 @@ using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
 {
-    [Route("api/registration/v1/[controller]")]
+    [Route("api/registration/v1/user")]
     [ApiController]
     public class UserController : ControllerBase
     {

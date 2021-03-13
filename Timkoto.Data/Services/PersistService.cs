@@ -201,5 +201,51 @@ namespace Timkoto.Data.Services
                 return t;
             });
         }
+
+        public async Task<bool> BatchSave<T>(List<T> data)
+        {
+            var retVal = false;
+            ITransaction tx = null;
+            
+            try
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                tx = dbSession.BeginTransaction();
+                var ctr = 0;
+
+                foreach (var item in data)
+                {
+                    await dbSession.SaveAsync(item);
+                    
+                    ctr++;
+                    if (ctr % 20 != 0)
+                    {
+                        continue;
+                    }
+                    
+                    // flush a batch of inserts and release memory:
+                    dbSession.Flush();
+                    dbSession.Clear();
+                }
+
+                await tx.CommitAsync();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+                //await _logger.LogAsync("Error PersistService.Save", ex, null,
+                //    new Dictionary<string, object> { { "data", data } });
+            }
+
+            return retVal;
+        }
     }
 }

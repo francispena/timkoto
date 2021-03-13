@@ -59,5 +59,13 @@ namespace Timkoto.Data.Services.Interfaces
         /// <returns></returns>
         Task<T> FindLast<T>(Expression<Func<T, bool>> expressionFunc, Expression<Func<T, object>> sortFunc)
             where T : class;
+
+        /// <summary>
+        /// Batches the save.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="data">The data.</param>
+        /// <returns></returns>
+        Task<bool> BatchSave<T>(List<T> data);
     }
 }

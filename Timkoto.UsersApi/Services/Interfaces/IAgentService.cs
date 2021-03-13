@@ -7,6 +7,6 @@ namespace Timkoto.UsersApi.Services.Interfaces
 {
     public interface IAgentService
     {
-        Task<ResponseBase> GetPlayers(long operatorId, long agentId, Guid traceId, List<string> messages);
+        
     }
 }

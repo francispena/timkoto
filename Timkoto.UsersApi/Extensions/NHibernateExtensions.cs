@@ -31,8 +31,8 @@ namespace Timkoto.UsersApi.Extensions
                 c.ConnectionString = connectionString;
                 c.KeywordsAutoImport = Hbm2DDLKeyWords.AutoQuote;
                 c.SchemaAction = SchemaAutoAction.Validate;
-                c.LogFormattedSql = true;
-                c.LogSqlInConsole = true;
+                c.LogFormattedSql = false;
+                c.LogSqlInConsole = false;
             });
 
             var serializer = new HbmSerializer();
