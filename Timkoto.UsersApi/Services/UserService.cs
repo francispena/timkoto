@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
@@ -23,21 +24,21 @@ namespace Timkoto.UsersApi.Services
         {
             var addUserResponse = new AddUserResponse();
 
-            var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
-            if (registrationCode == null)
-            {
-                addUserResponse =
-                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
+            //var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
+            //if (registrationCode == null)
+            //{
+            //    addUserResponse =
+            //        AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
 
-                return addUserResponse;
-            }
-            if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
-            {
-                addUserResponse =
-                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
+            //    return addUserResponse;
+            //}
+            //if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
+            //{
+            //    addUserResponse =
+            //        AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
 
-                return addUserResponse;
-            }
+            //    return addUserResponse;
+            //}
 
             var user = new User
             {
@@ -45,17 +46,20 @@ namespace Timkoto.UsersApi.Services
                 PhoneNumber = request.PhoneNumber,
                 UserName = request.UserName,
                 IsActive = true,
-                OperatorId = registrationCode.OperatorId,
-                AgentId = registrationCode.AgentId,
-                UserType = registrationCode.UserType
+                //OperatorId = registrationCode.OperatorId,
+                //AgentId = registrationCode.AgentId,
+                //UserType = registrationCode.UserType
+                OperatorId = 1,
+                AgentId = 4,
+                UserType = UserType.Player
             };
 
             var result = await _persistService.Save(user);
 
             if (result > 0)
             {
-                registrationCode.IsActive = false;
-                await _persistService.Update(registrationCode);
+                //registrationCode.IsActive = false;
+                //await _persistService.Update(registrationCode);
 
                 addUserResponse =
                     AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.NewUserCreated);

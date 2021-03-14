@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
-namespace Timkoto.UsersApi.Models
+namespace Timkoto.UsersApi.Models.Team
 {
     public class RapidApiTeams
     {
@@ -42,10 +39,5 @@ namespace Timkoto.UsersApi.Models
         public int results { get; set; }
         public List<string> filters { get; set; }
         public List<Team> teams { get; set; }
-    }
-
-    public class Root
-    {
-        public Api api { get; set; }
     }
 }

@@ -8,7 +8,7 @@ namespace Timkoto.Data.Repositories
         [Id(0, Name = "Id", Column = "id", TypeType = typeof(string), Length = 40)]
         public virtual string Id { get; set; }
 
-        [Property(Name = "TeamId", Column = "TeamId", TypeType = typeof(string), Length = 40,
+        [Property(Name = "TeamId", Column = "teamId", TypeType = typeof(string), Length = 40,
             Index = "teamId_ix", NotNull = true)]
         public virtual string TeamId { get; set; }
 
