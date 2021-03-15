@@ -5,6 +5,8 @@
     <AWSProjectType>Lambda</AWSProjectType>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Amazon.Extensions.CognitoAuthentication" Version="2.0.3" />
+    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="3.5.1.33" />
     <PackageReference Include="AWSSDK.Core" Version="3.5.3.5" />
     <PackageReference Include="AWSSDK.Lambda" Version="3.5.7.10" />
     <PackageReference Include="AWSSDK.S3" Version="3.5.9.3" />

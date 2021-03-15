@@ -6,6 +6,8 @@
 
         EmailAddressExists,
 
-        InvalidRegistrationCode
+        InvalidRegistrationCode,
+
+        AccountCreationError
     }
 }

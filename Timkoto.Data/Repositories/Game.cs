@@ -6,14 +6,13 @@ namespace Timkoto.Data.Repositories
     [Class(NameType = typeof(Game), Table = "game")]
     public class Game
     {
-        [Id(0, Name = "Id", Column = "id", TypeType = typeof(long))]
-        [Generator(1, Class = "identity")]
-        public virtual long Id { get; set; }
+        [Id(0, Name = "Id", Column = "id", TypeType = typeof(string), Length = 40)]
+        public virtual string Id { get; set; }
 
         [Property(Name = "ContestId", Column = "contestId", TypeType = typeof(long),
             Index = "contestId_ix", NotNull = true)]
         public virtual long ContestId { get; set; }
-
+      
         [Property(Name = "HTeamId", Column = "hTeamId", TypeType = typeof(string), Length = 40,
             Index = "hTeamId_ix", NotNull = true)]
         public virtual string HTeamId { get; set; }

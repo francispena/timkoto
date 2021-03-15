@@ -11,8 +11,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Amazon.Lambda.Core;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Authorization;
+using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
@@ -23,6 +26,10 @@ namespace Timkoto.UsersApi
 {
     public class Startup
     {
+        public static ILambdaContext LambdaContext { get; set; }
+
+        public static IConfiguration Configuration { get; private set; }
+
         public Startup(IConfiguration configuration)
         {
             var environment = Environment.GetEnvironmentVariable("Environment") ?? "Development";
@@ -42,13 +49,11 @@ namespace Timkoto.UsersApi
             };
         }
 
-        public static IConfiguration Configuration { get; private set; }
-
         // This method gets called by the runtime. Use this method to add services to the container
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Configuration.GetConnectionString("TimkotoWrite");
-
+           
             services.AddControllers()
                 .AddNewtonsoftJson(options =>
                     options.SerializerSettings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter()));
@@ -93,7 +98,8 @@ namespace Timkoto.UsersApi
             services.AddTransient<ITransactionService, TransactionService>();
             services.AddTransient<IPlayerService, PlayerService>();
             services.AddTransient<IHttpService, HttpService>();
-
+            services.AddTransient<ICognitoUserStore, CognitoUserStore>();
+            
             //services.AddSingleton(typeof(DbManager));
             //services.AddTransient<ISessionFactory>(_ =>
             //{
@@ -136,6 +142,7 @@ namespace Timkoto.UsersApi
             app.UseRouting();
 
             app.UseAuthorization();
+            app.UseAuthentication();
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }

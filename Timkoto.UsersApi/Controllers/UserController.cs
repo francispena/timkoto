@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -22,7 +23,10 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] AddUserRequest newUser, [FromHeader] Guid traceId)
         {
-            var messages = new List<string>();
+            var lambdaContext = Startup.LambdaContext;
+            var messages = new List<string> { "UserController.Post", $"newUser - {JsonConvert.SerializeObject(newUser)}"};
+            lambdaContext.Logger.Log(string.Join("\r\n", messages));
+
             ResponseBase result;
 
             try

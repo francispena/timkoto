@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -15,30 +16,33 @@ namespace Timkoto.UsersApi.Services
     {
         private readonly IPersistService _persistService;
 
-        public UserService(IPersistService persistService)
+        private readonly ICognitoUserStore _cognitoUserStore;
+
+        public UserService(IPersistService persistService, ICognitoUserStore cognitoUserStore)
         {
             _persistService = persistService;
+            _cognitoUserStore = cognitoUserStore;
         }
 
         public async Task<ResponseBase> AddUser(AddUserRequest request, Guid traceId, List<string> messages)
         {
             var addUserResponse = new AddUserResponse();
+            
+            var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
+            if (registrationCode == null)
+            {
+                addUserResponse =
+                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
 
-            //var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
-            //if (registrationCode == null)
-            //{
-            //    addUserResponse =
-            //        AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
+                return addUserResponse;
+            }
+            if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
+            {
+                addUserResponse =
+                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
 
-            //    return addUserResponse;
-            //}
-            //if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
-            //{
-            //    addUserResponse =
-            //        AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
-
-            //    return addUserResponse;
-            //}
+                return addUserResponse;
+            }
 
             var user = new User
             {
@@ -46,9 +50,6 @@ namespace Timkoto.UsersApi.Services
                 PhoneNumber = request.PhoneNumber,
                 UserName = request.UserName,
                 IsActive = true,
-                //OperatorId = registrationCode.OperatorId,
-                //AgentId = registrationCode.AgentId,
-                //UserType = registrationCode.UserType
                 OperatorId = 1,
                 AgentId = 4,
                 UserType = UserType.Player
@@ -58,11 +59,20 @@ namespace Timkoto.UsersApi.Services
 
             if (result > 0)
             {
-                //registrationCode.IsActive = false;
-                //await _persistService.Update(registrationCode);
+                registrationCode.IsActive = false;
+                await _persistService.Update(registrationCode);
 
-                addUserResponse =
+                var createResult  = await _cognitoUserStore.CreateAsync(request.Email, request.Password);
+                if (!createResult)
+                {
+                    addUserResponse =
+                        AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.AccountCreationError);
+                }
+                else
+                { addUserResponse =
                     AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.NewUserCreated);
+
+                }
             }
             else if (result == -1000)
             {

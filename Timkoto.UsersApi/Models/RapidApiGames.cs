@@ -42,7 +42,7 @@ namespace Timkoto.UsersApi.Models.Games
         public string league { get; set; }
         public string gameId { get; set; }
         public DateTime startTimeUTC { get; set; }
-        public DateTime endTimeUTC { get; set; }
+        public string endTimeUTC { get; set; }
         public string arena { get; set; }
         public string city { get; set; }
         public string country { get; set; }

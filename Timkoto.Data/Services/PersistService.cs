@@ -247,5 +247,38 @@ namespace Timkoto.Data.Services
 
             return retVal;
         }
+
+        public async Task<bool> ExecuteSql(string sqlStatement)
+        {
+            var retVal = false;
+            ITransaction tx = null;
+
+            try
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                tx = dbSession.BeginTransaction();
+
+                await dbSession.CreateSQLQuery(sqlStatement).ExecuteUpdateAsync();
+                
+                await tx.CommitAsync();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+                //await _logger.LogAsync("Error PersistService.Save", ex, null,
+                //    new Dictionary<string, object> { { "data", data } });
+            }
+
+            return retVal;
+        }
+
     }
 }

@@ -80,6 +80,7 @@ namespace Timkoto.UsersApi
 
             //Logger.LambdaContext = lambdaContext;
             //DynamoDataContext.LambdaContext = lambdaContext;
+            Startup.LambdaContext = lambdaContext;
             return await base.FunctionHandlerAsync(request, lambdaContext);
         }
     }

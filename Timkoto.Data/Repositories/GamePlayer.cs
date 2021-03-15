@@ -18,9 +18,9 @@ namespace Timkoto.Data.Repositories
             Index = "contestId_ix", NotNull = true)]
         public virtual long ContestId { get; set; }
 
-        [Property(Name = "GameId", Column = "gameId", TypeType = typeof(long),
+        [Property(Name = "GameId", Column = "GameId", TypeType = typeof(string), Length = 40,
             Index = "gameId_ix", NotNull = true)]
-        public virtual long GameId { get; set; }
+        public virtual string GameId { get; set; }
 
         [Property(Name = "TeamId", Column = "teamId", TypeType = typeof(string), Length = 40,
             Index = "teamId_ix", NotNull = true)]

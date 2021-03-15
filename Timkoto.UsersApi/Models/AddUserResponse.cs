@@ -31,7 +31,9 @@ namespace Timkoto.UsersApi.Models
                 case AddNewUserResult.EmailAddressExists:
                     return "Email address exists.";
                 case AddNewUserResult.InvalidRegistrationCode:
-                    return "Invalid Registration Code.";
+                    return "Invalid registration code, please contact your agent.";
+                case AddNewUserResult.AccountCreationError:
+                    return "Account creation error, please contact your agent.";
             }
 
             return "";

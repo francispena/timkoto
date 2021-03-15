@@ -67,5 +67,12 @@ namespace Timkoto.Data.Services.Interfaces
         /// <param name="data">The data.</param>
         /// <returns></returns>
         Task<bool> BatchSave<T>(List<T> data);
+
+        /// <summary>
+        /// Executes the SQL.
+        /// </summary>
+        /// <param name="sqlStatement">The SQL statement.</param>
+        /// <returns></returns>
+        Task<bool> ExecuteSql(string sqlStatement);
     }
 }
