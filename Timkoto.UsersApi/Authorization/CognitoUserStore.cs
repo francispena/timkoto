@@ -1,18 +1,22 @@
-﻿using Amazon.CognitoIdentityProvider;
+﻿using Amazon;
+using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
 using Amazon.Extensions.CognitoAuthentication;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Timkoto.UsersApi.Authorization.Interfaces;
+using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Models;
 
 namespace Timkoto.UsersApi.Authorization
 {
     public class CognitoUserStore : ICognitoUserStore
     {
-        private readonly AmazonCognitoIdentityProviderClient _client = new AmazonCognitoIdentityProviderClient();
-        
+        private readonly AmazonCognitoIdentityProviderClient _providerClient = new AmazonCognitoIdentityProviderClient(RegionEndpoint.APSoutheast1);
+
         private readonly string _userPoolId;
         private readonly string _clientId;
 
@@ -24,15 +28,13 @@ namespace Timkoto.UsersApi.Authorization
             _userPoolId = configuration["CognitoUserPoolId"];
         }
 
-        public async Task<bool> CreateAsync(string userName, string password)
+        public async Task<Results> CreateAsync(string userName, string password, List<string> messages)
         {
             var lambdaContext = Startup.LambdaContext;
 
-            var messages = new List<string>();
-            
+            lambdaContext.Logger.Log("CreateAsync");
 
-            var retVal = false;
-
+            var retVal = Results.Unknown;
             try
             {
                 var signUpRequest = new SignUpRequest
@@ -45,12 +47,13 @@ namespace Timkoto.UsersApi.Authorization
                 };
 
                 messages.Add("start signUpResult");
-                var signUpResult = await _client.SignUpAsync(signUpRequest);
+                var signUpResult = await _providerClient.SignUpAsync(signUpRequest);
                 messages.Add($"signUpResult - {JsonConvert.SerializeObject(signUpResult)}");
 
                 if (signUpResult.HttpStatusCode != HttpStatusCode.OK)
                 {
-                    return false;
+                    retVal = Results.AccountCreationInCognitoFailed;
+                    return retVal;
                 }
 
                 var adminConfirmSignUpRequest = new AdminConfirmSignUpRequest
@@ -59,49 +62,91 @@ namespace Timkoto.UsersApi.Authorization
                     UserPoolId = _userPoolId,
                 };
 
-                var adminConfirmSignUpResult = await _client.AdminConfirmSignUpAsync(adminConfirmSignUpRequest);
+                var adminConfirmSignUpResult = await _providerClient.AdminConfirmSignUpAsync(adminConfirmSignUpRequest);
                 messages.Add($"adminConfirmSignUpResult - {JsonConvert.SerializeObject(adminConfirmSignUpResult)}");
                 if (adminConfirmSignUpResult.HttpStatusCode != HttpStatusCode.OK)
                 {
-                    retVal = false;
+                    await _providerClient.AdminDeleteUserAsync(new AdminDeleteUserRequest
+                    {
+                        UserPoolId = _userPoolId,
+                        Username = userName
+                    });
+
+                    retVal = Results.AccountConfirmationInCognitoFailed;
+                    return retVal;
                 }
+
+                retVal = Results.AccountConfirmedInCognito;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                retVal = false;
+                retVal = Results.AccountCreationInCognitoError;
                 messages.Add($"CreateAsync error message - {ex.Message}");
             }
             finally
             {
-                lambdaContext.Logger.Log(string.Join("\r\n", messages));
+                messages.Add($"retVal - {retVal}");
+                lambdaContext?.Logger.Log(string.Join("\r\n", messages));
             }
-
-            //var adminUpdateUserAttributesRequest = new AdminUpdateUserAttributesRequest
-            //{
-            //    Username = userName,
-            //    UserPoolId = _userPoolId,
-            //    UserAttributes = new List<AttributeType> { new AttributeType { Name = "email_verified", Value = "true" } }
-            //};
-
-            //await _client.AdminUpdateUserAttributesAsync(adminUpdateUserAttributesRequest);
 
             return retVal;
         }
 
-        public async Task<string> AuthenticateAsync(string userName, string password)
+        public async Task<GenericResponse> AuthenticateAsync(string userName, string password, List<string> messages)
         {
-            var provider = new AmazonCognitoIdentityProviderClient(new Amazon.Runtime.AnonymousAWSCredentials());
-            var userPool = new CognitoUserPool(_userPoolId, _clientId, provider);
-            var user = new CognitoUser(userName, _clientId, userPool, provider);
-            
-            var authRequest = new InitiateSrpAuthRequest()
+            var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
+            var user = new CognitoUser(userName, _clientId, userPool, _providerClient);
+
+            var authRequest = new InitiateSrpAuthRequest
             {
                 Password = password
             };
 
             var authResponse = await user.StartWithSrpAuthAsync(authRequest).ConfigureAwait(false);
 
-            return authResponse?.AuthenticationResult?.IdToken;
+            GenericResponse genericResponse;
+
+            if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
+            {
+                genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
+                genericResponse.Data = new
+                {
+                    IdToken = authResponse?.AuthenticationResult?.IdToken
+                };
+            }
+            else
+            {
+                genericResponse= GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+            }
+
+            return genericResponse;
+        }
+
+        public async Task<GenericResponse> ChangePasswordAsync(string userName, string password, List<string> messages)
+        {
+            var setPasswordResult = await _providerClient.AdminSetUserPasswordAsync(new AdminSetUserPasswordRequest
+            {
+                UserPoolId = _userPoolId,
+                Username = userName,
+                Password = password,
+                Permanent = true
+            });
+
+            var genericResponse = setPasswordResult.HttpStatusCode == HttpStatusCode.OK
+                ? GenericResponse.Create(true, HttpStatusCode.OK, Results.ChangePasswordSucceeded)
+                : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+
+            return genericResponse;
         }
     }
 }
+
+
+//var adminUpdateUserAttributesRequest = new AdminUpdateUserAttributesRequest
+//{
+//    Username = userName,
+//    UserPoolId = _userPoolId,
+//    UserAttributes = new List<AttributeType> { new AttributeType { Name = "email_verified", Value = "true" } }
+//};
+
+//await _client.AdminUpdateUserAttributesAsync(adminUpdateUserAttributesRequest);

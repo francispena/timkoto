@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
@@ -24,24 +23,24 @@ namespace Timkoto.UsersApi.Services
             _cognitoUserStore = cognitoUserStore;
         }
 
-        public async Task<ResponseBase> AddUser(AddUserRequest request, Guid traceId, List<string> messages)
+        public async Task<GenericResponse> AddUser(AddUserRequest request, List<string> messages)
         {
-            var addUserResponse = new AddUserResponse();
+            var genericResponse = new GenericResponse();
             
             var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
             if (registrationCode == null)
             {
-                addUserResponse =
-                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
 
-                return addUserResponse;
+                return genericResponse;
             }
             if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
             {
-                addUserResponse =
-                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.InvalidRegistrationCode);
+                genericResponse =
+                    GenericResponse.Create(false,  HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
 
-                return addUserResponse;
+                return genericResponse;
             }
 
             var user = new User
@@ -50,37 +49,39 @@ namespace Timkoto.UsersApi.Services
                 PhoneNumber = request.PhoneNumber,
                 UserName = request.UserName,
                 IsActive = true,
-                OperatorId = 1,
-                AgentId = 4,
-                UserType = UserType.Player
+                OperatorId = registrationCode.OperatorId,
+                AgentId = registrationCode.AgentId,
+                UserType = registrationCode.UserType
             };
 
             var result = await _persistService.Save(user);
 
             if (result > 0)
             {
-                registrationCode.IsActive = false;
-                await _persistService.Update(registrationCode);
-
-                var createResult  = await _cognitoUserStore.CreateAsync(request.Email, request.Password);
-                if (!createResult)
+                var createResult  = await _cognitoUserStore.CreateAsync(request.Email, request.Password, messages);
+                if (createResult == Results.AccountConfirmedInCognito)
                 {
-                    addUserResponse =
-                        AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.AccountCreationError);
+                    registrationCode.IsActive = false;
+                    await _persistService.Update(registrationCode);
+
+                    genericResponse =
+                        GenericResponse.Create(true, HttpStatusCode.OK, Results.NewUserCreated);
                 }
                 else
-                { addUserResponse =
-                    AddUserResponse.Create(true, traceId, HttpStatusCode.OK, AddNewUserResult.NewUserCreated);
+                {
+                    await _persistService.Delete(user);
 
+                    genericResponse =
+                        GenericResponse.Create(true, HttpStatusCode.Forbidden, createResult);
                 }
             }
             else if (result == -1000)
             {
-                addUserResponse =
-                    AddUserResponse.Create(false, traceId, HttpStatusCode.Forbidden, AddNewUserResult.EmailAddressExists);
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.EmailAddressExists);
             }
 
-            return addUserResponse;
+            return genericResponse;
         }
     }
 }

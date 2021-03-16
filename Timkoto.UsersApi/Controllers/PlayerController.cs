@@ -21,20 +21,20 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("{userId}")]
         [HttpGet]
-        public async Task<IActionResult> Players([FromRoute] long userId, [FromHeader] Guid traceId)
+        public async Task<IActionResult> Players([FromRoute] long userId)
         {
             var messages = new List<string>();
-            ResponseBase result;
+            GenericResponse result;
 
             try
             {
-                result = await _playerService.GetPlayer(userId, traceId, messages);
+                result = await _playerService.GetPlayer(userId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = ResponseBase.CreateErrorResponse(ex);
+                result = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
             }
@@ -46,20 +46,20 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("{operatorId}/{agentId}")]
         [HttpGet]
-        public async Task<IActionResult> Players([FromRoute] long operatorId, [FromRoute] long agentId, [FromHeader] Guid traceId)
+        public async Task<IActionResult> Players([FromRoute] long operatorId, [FromRoute] long agentId)
         {
             var messages = new List<string>();
-            ResponseBase result;
+            GenericResponse result;
 
             try
             {
-                result = await _playerService.GetPlayers(operatorId, agentId, traceId, messages);
+                result = await _playerService.GetPlayers(operatorId, agentId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = ResponseBase.CreateErrorResponse(ex);
+                result = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
             }

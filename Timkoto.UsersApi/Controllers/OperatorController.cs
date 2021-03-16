@@ -10,35 +10,32 @@ namespace Timkoto.UsersApi.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
-    public class TransactionController : ControllerBase
+    public class OperatorController : ControllerBase
     {
-        private readonly ITransactionService _transactionService;
+        private readonly IOperatorService _operatorService;
 
-        public TransactionController(ITransactionService transactionService)
+        public OperatorController(IOperatorService operatorService)
         {
-            _transactionService = transactionService;
+            _operatorService = operatorService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] AddTransactionRequest request)
+        [Route("Agents/{operatorId}")]
+        [HttpGet]
+        public async Task<IActionResult> Agents([FromRoute] long operatorId)
         {
-            //if (!ModelState.IsValid )
-            //{
-                
-            //}
-
             var messages = new List<string>();
             GenericResponse result;
 
             try
             {
-                result = await _transactionService.AddTransaction(request, messages);
+                result = await _operatorService.GetAgents(operatorId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
                 result = GenericResponse.CreateErrorResponse(ex);
+
                 return StatusCode(500, result);
             }
             finally
@@ -46,5 +43,6 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
     }
 }

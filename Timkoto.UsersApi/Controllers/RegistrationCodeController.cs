@@ -21,19 +21,19 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("{id}")]
         [HttpGet]
-        public async Task<IActionResult> Get([FromRoute] long id, [FromHeader] Guid traceId)
+        public async Task<IActionResult> Get([FromRoute] long id)
         {
             var messages = new List<string>();
-            ResponseBase result;
+            GenericResponse result;
 
             try
             {
-                result = await _registrationCodeService.Generate(id, traceId, messages);
+                result = await _registrationCodeService.Generate(id, messages);
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = ResponseBase.CreateErrorResponse(ex);
+                result = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
             }

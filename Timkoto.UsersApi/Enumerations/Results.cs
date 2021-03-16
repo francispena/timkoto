@@ -1,0 +1,29 @@
+﻿namespace Timkoto.UsersApi.Enumerations
+{
+    public enum Results
+    {
+        Unknown,
+        NewUserCreated,
+        EmailAddressExists,
+        InvalidRegistrationCode,
+        AccountCreationError,
+        AccountCreatedInCognito,
+        AccountCreationInCognitoFailed,
+        AccountConfirmedInCognito,
+        AccountConfirmationInCognitoFailed,
+        AccountCreationInCognitoError,
+        TransactionAdded,
+        AddTransactionFailed,
+        CodeCreated,
+        InvalidUserId,
+        AgentsFound,
+        NoAgentFound,
+        PlayerFound,
+        PlayersFound,
+        NoPlayerFound,
+        AuthenticationFailed,
+        AuthenticationSucceeded,
+        ChangePasswordSucceeded,
+        ChangePasswordFailed
+    }
+}

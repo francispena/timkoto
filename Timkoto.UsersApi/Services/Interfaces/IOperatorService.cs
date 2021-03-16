@@ -5,8 +5,8 @@ using Timkoto.UsersApi.Models;
 
 namespace Timkoto.UsersApi.Services.Interfaces
 {
-    public interface IRegistrationCodeService
+    public interface IOperatorService
     {
-        Task<GenericResponse> Generate(long userId, List<string> messages);
+        Task<GenericResponse> GetAgents(long operatorId, List<string> messages);
     }
 }

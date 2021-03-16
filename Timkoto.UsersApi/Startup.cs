@@ -99,6 +99,7 @@ namespace Timkoto.UsersApi
             services.AddTransient<IPlayerService, PlayerService>();
             services.AddTransient<IHttpService, HttpService>();
             services.AddTransient<ICognitoUserStore, CognitoUserStore>();
+            services.AddTransient<IOperatorService, OperatorService>();
             
             //services.AddSingleton(typeof(DbManager));
             //services.AddTransient<ISessionFactory>(_ =>

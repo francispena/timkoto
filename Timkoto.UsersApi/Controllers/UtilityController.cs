@@ -41,7 +41,7 @@ namespace Timkoto.UsersApi.Controllers
         {
             return Ok(true);
             var messages = new List<string>();
-            ResponseBase result;
+            GenericResponse result;
 
             try
             {
@@ -77,7 +77,7 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
-                result = ResponseBase.CreateErrorResponse(ex);
+                result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
             }
@@ -93,7 +93,7 @@ namespace Timkoto.UsersApi.Controllers
         {
             return Ok(true);
             var messages = new List<string>();
-            ResponseBase result;
+            GenericResponse result;
 
             try
             {
@@ -140,7 +140,7 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
-                result = ResponseBase.CreateErrorResponse(ex);
+                result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
             }
@@ -274,7 +274,7 @@ namespace Timkoto.UsersApi.Controllers
                     await tx.RollbackAsync();
                 }
 
-                var result = ResponseBase.CreateErrorResponse(ex);
+                var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
             }
@@ -283,7 +283,6 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
-
 
         private string ToStringDayDate(DateTime dateNoTimeZone)
         {

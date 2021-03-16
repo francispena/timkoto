@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Timkoto.Data.Repositories;
@@ -19,7 +18,7 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<ResponseBase> AddTransaction(AddTransactionRequest request, Guid traceId, List<string> messages)
+        public async Task<GenericResponse> AddTransaction(AddTransactionRequest request, List<string> messages)
         {
             var lastTransaction = await
                 _persistService.FindLast<Transaction>(_ => _.UserId == request.UserId, _ => _.CreateDateTime);
@@ -37,9 +36,8 @@ namespace Timkoto.UsersApi.Services
             var result = await _persistService.Save(newTransaction);
 
             return result > 0
-                 ? TransactionResponse.Create(true, traceId, HttpStatusCode.OK, AddTransactionResult.TransactionAdded)
-                 : TransactionResponse.Create(true, traceId, HttpStatusCode.Forbidden,
-                     AddTransactionResult.AddTransactionFailed);
+                 ? GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionAdded)
+                 : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AddTransactionFailed);
         }
     }
 }

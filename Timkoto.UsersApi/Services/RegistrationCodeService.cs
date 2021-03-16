@@ -21,18 +21,17 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<ResponseBase> Generate(long userId, Guid traceId, List<string> messages)
+        public async Task<GenericResponse> Generate(long userId, List<string> messages)
         {
-            GenerateCodeResponse generateCodeResponse;
+            GenericResponse genericResponse;
 
             var user = await _persistService.FindOne<User>(_ => _.Id == userId && _.UserType != UserType.Player);
 
             if (user == null)
             {
-                generateCodeResponse = GenerateCodeResponse.Create(false, traceId, HttpStatusCode.Forbidden,
-                    GenerateCodeResult.InvalidUserId);
+                genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidUserId);
 
-                return generateCodeResponse;
+                return genericResponse;
             }
 
             var code = Guid.NewGuid().ToString("N");
@@ -63,16 +62,15 @@ namespace Timkoto.UsersApi.Services
                     throw new ArgumentOutOfRangeException();
             }
 
-            var result = await _persistService.Save(registrationCode);
+            await _persistService.Save(registrationCode);
 
-            generateCodeResponse = GenerateCodeResponse.Create(true, traceId, HttpStatusCode.OK,
-                GenerateCodeResult.CodeCreated);
+            genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.CodeCreated);
             
-            generateCodeResponse.Data = new {
+            genericResponse.Data = new {
                 Code = code
             };
 
-            return generateCodeResponse;
+            return genericResponse;
         }
     }
 }

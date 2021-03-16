@@ -7,8 +7,8 @@ namespace Timkoto.UsersApi.Services.Interfaces
 {
     public interface IPlayerService
     {
-        Task<ResponseBase> GetPlayer(long userId, Guid traceId, List<string> messages);
+        Task<GenericResponse> GetPlayer(long userId, List<string> messages);
 
-        Task<ResponseBase> GetPlayers(long operatorId, long agentId, Guid traceId, List<string> messages);
+        Task<GenericResponse> GetPlayers(long operatorId, long agentId, List<string> messages);
     }
 }

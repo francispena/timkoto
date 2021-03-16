@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -20,59 +19,59 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<ResponseBase> GetPlayer(long userId, Guid traceId, List<string> messages)
+        public async Task<GenericResponse> GetPlayer(long userId, List<string> messages)
         {
-            GetPlayerResponse getPlayersResult;
+            GenericResponse genericResponse;
 
             var player =
                 await _persistService.FindOne<User>(_ => _.Id == userId);
 
             if (player == null)
             {
-                getPlayersResult =
-                    GetPlayerResponse.Create(false, traceId, HttpStatusCode.Forbidden,  GetPlayerResult.NoPlayerFound);
-                
-                return getPlayersResult;
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoPlayerFound);
+
+                return genericResponse;
             }
 
             var playerWallet =
                 await _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.CreateDateTime);
 
-            getPlayersResult =
-                GetPlayerResponse.Create(true, traceId, HttpStatusCode.OK, GetPlayerResult.PlayerFound);
-            
-            getPlayersResult.Data = new { Player = player, Wallet = playerWallet  };
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
 
-            
-            return getPlayersResult;
+            genericResponse.Data = new { Player = player, Wallet = playerWallet };
+
+
+            return genericResponse;
         }
 
-        public async Task<ResponseBase> GetPlayers(long operatorId, long agentId, Guid traceId, List<string> messages)
+        public async Task<GenericResponse> GetPlayers(long operatorId, long agentId, List<string> messages)
         {
-            var getPlayersResult = new GetPlayersResponse();
+            var genericResponse = new GenericResponse();
 
             var players =
                 await _persistService.FindMany<User>(_ => _.OperatorId == operatorId && _.AgentId == agentId);
 
             if (players == null || !players.Any())
             {
-                getPlayersResult =
-                    GetPlayersResponse.Create(false, traceId, HttpStatusCode.Forbidden, GetPlayersResult.NoPlayerFound);
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoPlayerFound);
 
-                return getPlayersResult;
+                return genericResponse;
             }
 
             if (!players.Any())
             {
-                return getPlayersResult;
+                return genericResponse;
             }
 
-            getPlayersResult =
-                GetPlayersResponse.Create(true, traceId, HttpStatusCode.OK, GetPlayersResult.PlayersFound);
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayersFound);
 
-            getPlayersResult.Data = players.OrderBy(_ => _.UserName).ToList();
+            genericResponse.Data = new { Players = players.OrderBy(_ => _.UserName).ToList() };
 
-            return getPlayersResult;
+            return genericResponse;
         }
 
     }
