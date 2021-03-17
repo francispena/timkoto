@@ -34,6 +34,10 @@ namespace Timkoto.Data.Repositories
             Index = "agentCommission_ix", NotNull = true)]
         public virtual decimal AgentCommission { get; set; }
 
+        [Property(Name = "Prize", Column = "prize", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "prize_ix", NotNull = true)]
+        public virtual bool Prize { get; set; }
+
         [Property(Name = "IsPaid", Column = "isPaid", TypeType = typeof(bool),
             Index = "isPaid_ix", NotNull = true)]
         public virtual bool IsPaid { get; set; }

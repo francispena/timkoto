@@ -24,6 +24,7 @@
         AuthenticationFailed,
         AuthenticationSucceeded,
         ChangePasswordSucceeded,
-        ChangePasswordFailed
+        ChangePasswordFailed,
+        GameNotFound
     }
 }

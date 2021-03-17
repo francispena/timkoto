@@ -44,5 +44,29 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
+        [Route("Agents/{operatorId}/{gameDate}")]
+        [HttpGet]
+        public async Task<IActionResult> ContestAgents([FromRoute] long operatorId, [FromRoute] string gameDate)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _operatorService.GetContestAgents(operatorId, gameDate, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

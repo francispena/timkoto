@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using NHibernate.Transform;
 using Timkoto.Data.Services.Interfaces;
 
 namespace Timkoto.Data.Services
@@ -161,30 +162,27 @@ namespace Timkoto.Data.Services
         /// <returns></returns>
         public async Task<T> FindOne<T>(Expression<Func<T, bool>> expressionFunc) where T : class
         {
-            return await Task.Run(() =>
-            {
-                var dbSession = _sessionFactory.OpenSession();
-                var t = dbSession.QueryOver<T>().Where(expressionFunc).List().FirstOrDefault();
+            var dbSession = _sessionFactory.OpenSession();
+            var result = await dbSession.QueryOver<T>().Where(expressionFunc).ListAsync();
 
-                dbSession.Close();
-                dbSession.Dispose();
+            var retVal = result.FirstOrDefault();
 
-                return t;
-            });
+            dbSession.Close();
+            dbSession.Dispose();
+
+            return retVal;
         }
 
         public async Task<List<T>> FindMany<T>(Expression<Func<T, bool>> expressionFunc) where T : class
         {
-            return await Task.Run(() =>
-            {
-                var dbSession = _sessionFactory.OpenSession();
-                var t = dbSession.QueryOver<T>().Where(expressionFunc).List().ToList();
+            var dbSession = _sessionFactory.OpenSession();
+            var result = await dbSession.QueryOver<T>().Where(expressionFunc).ListAsync();
+            var retVal = result.ToList();
 
-                dbSession.Close();
-                dbSession.Dispose();
+            dbSession.Close();
+            dbSession.Dispose();
 
-                return t;
-            });
+            return retVal;
         }
 
         public async Task<T> FindLast<T>(Expression<Func<T, bool>> expressionFunc, Expression<Func<T, object>> sortFunc) where T : class
@@ -206,7 +204,7 @@ namespace Timkoto.Data.Services
         {
             var retVal = false;
             ITransaction tx = null;
-            
+
             try
             {
                 var dbSession = _sessionFactory.OpenSession();
@@ -216,13 +214,13 @@ namespace Timkoto.Data.Services
                 foreach (var item in data)
                 {
                     await dbSession.SaveAsync(item);
-                    
+
                     ctr++;
                     if (ctr % 20 != 0)
                     {
                         continue;
                     }
-                    
+
                     // flush a batch of inserts and release memory:
                     dbSession.Flush();
                     dbSession.Clear();
@@ -259,7 +257,7 @@ namespace Timkoto.Data.Services
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery(sqlStatement).ExecuteUpdateAsync();
-                
+
                 await tx.CommitAsync();
 
                 dbSession.Close();
@@ -280,5 +278,37 @@ namespace Timkoto.Data.Services
             return retVal;
         }
 
+        public async Task<List<T>> SqlQuery<T>(string sqlStatement)
+        {
+            ITransaction tx = null;
+            try
+            {
+                var dbSession = _sessionFactory.OpenSession();
+                tx = dbSession.BeginTransaction();
+
+                var result = await dbSession.CreateSQLQuery(sqlStatement)
+                    .SetResultTransformer(Transformers.AliasToBean<T>()).ListAsync<T>();
+                
+                var retVal = result.ToList();
+                
+                await tx.CommitAsync();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return retVal;
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+                //await _logger.LogAsync("Error PersistService.Save", ex, null,
+                //    new Dictionary<string, object> { { "data", data } });
+            }
+
+            return default;
+        }
     }
 }

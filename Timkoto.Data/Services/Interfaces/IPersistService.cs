@@ -74,5 +74,13 @@ namespace Timkoto.Data.Services.Interfaces
         /// <param name="sqlStatement">The SQL statement.</param>
         /// <returns></returns>
         Task<bool> ExecuteSql(string sqlStatement);
+
+        /// <summary>
+        /// SQLs the query.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sqlStatement">The SQL statement.</param>
+        /// <returns></returns>
+        Task<List<T>> SqlQuery<T>(string sqlStatement);
     }
 }

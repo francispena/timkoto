@@ -27,6 +27,7 @@ namespace Timkoto.UsersApi.Models
             {
                 IsSuccess = isSuccess,
                 ResponseCode = statusCode,
+                ResponseMessage = statusCode.ToString(),
                 Result = new
                 {
                     Code = result.ToString(),
@@ -88,6 +89,8 @@ namespace Timkoto.UsersApi.Models
                     return "ChangePassword failed, please contact your agent.";
                 case Results.ChangePasswordSucceeded:
                     return "ChangePassword succeeded.";
+                case Results.GameNotFound:
+                    return "Game not found.";
             }
 
             return "";

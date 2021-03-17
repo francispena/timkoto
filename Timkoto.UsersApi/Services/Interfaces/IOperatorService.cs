@@ -8,5 +8,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
     public interface IOperatorService
     {
         Task<GenericResponse> GetAgents(long operatorId, List<string> messages);
+
+        Task<GenericResponse> GetContestAgents(long operatorId, string gameDate, List<string> messages);
     }
 }
