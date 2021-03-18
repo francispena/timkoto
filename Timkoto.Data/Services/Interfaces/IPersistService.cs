@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using NHibernate;
 
 namespace Timkoto.Data.Services.Interfaces
 {
@@ -82,5 +83,11 @@ namespace Timkoto.Data.Services.Interfaces
         /// <param name="sqlStatement">The SQL statement.</param>
         /// <returns></returns>
         Task<List<T>> SqlQuery<T>(string sqlStatement);
+
+        /// <summary>
+        /// Gets the session.
+        /// </summary>
+        /// <returns></returns>
+        ISession GetSession();
     }
 }

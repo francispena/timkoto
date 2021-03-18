@@ -288,9 +288,9 @@ namespace Timkoto.Data.Services
 
                 var result = await dbSession.CreateSQLQuery(sqlStatement)
                     .SetResultTransformer(Transformers.AliasToBean<T>()).ListAsync<T>();
-                
+
                 var retVal = result.ToList();
-                
+
                 await tx.CommitAsync();
 
                 dbSession.Close();
@@ -309,6 +309,11 @@ namespace Timkoto.Data.Services
             }
 
             return default;
+        }
+
+        public ISession GetSession()
+        {
+            return _sessionFactory.OpenSession();
         }
     }
 }

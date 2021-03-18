@@ -35,6 +35,34 @@ namespace Timkoto.Data.Repositories
             Index = "playerId_ix", NotNull = true)]
         public virtual string PlayerId { get; set; }
 
+        [Property(Name = "Salary", Column = "salary", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "salary_ix", NotNull = true)]
+        public virtual decimal Salary { get; set; }
+
+        [Property(Name = "Points", Column = "points", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "points_ix", NotNull = true)]
+        public virtual decimal Points { get; set; }
+
+        [Property(Name = "Rebounds", Column = "rebounds", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "rebounds_ix", NotNull = true)]
+        public virtual decimal Rebounds { get; set; }
+
+        [Property(Name = "Assists", Column = "assists", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "assists_ix", NotNull = true)]
+        public virtual decimal Assists { get; set; }
+
+        [Property(Name = "Steals", Column = "steals", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "steals_ix", NotNull = true)]
+        public virtual decimal Steals { get; set; }
+
+        [Property(Name = "Blocks", Column = "blocks", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "blocks_ix", NotNull = true)]
+        public virtual decimal Blocks { get; set; }
+
+        [Property(Name = "TurnOvers", Column = "turnOvers", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "turnOvers_ix", NotNull = true)]
+        public virtual decimal TurnOvers { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

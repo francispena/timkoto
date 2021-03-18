@@ -16,17 +16,21 @@ namespace Timkoto.Data.Repositories
             Index = "firstName_ix", NotNull = true)]
         public virtual string FirstName { get; set; }
 
-        [Property(Name = "LastName", Column = "nickName", TypeType = typeof(string), Length = 50,
-            Index = "nickName_ix", NotNull = true)]
+        [Property(Name = "LastName", Column = "lastName", TypeType = typeof(string), Length = 50,
+            Index = "lastName_ix", NotNull = true)]
         public virtual string LastName { get; set; }
 
         [Property(Name = "Jersey", Column = "jersey", TypeType = typeof(string), Length = 3,
             Index = "jersey_ix", NotNull = true)]
         public virtual string Jersey { get; set; }
 
-        [Property(Name = "Position", Column = "city", TypeType = typeof(string), Length = 5,
-            Index = "city_ix", NotNull = true)]
+        [Property(Name = "Position", Column = "position", TypeType = typeof(string), Length = 5,
+            Index = "position_ix", NotNull = true)]
         public virtual string Position { get; set; }
+
+        [Property(Name = "Salary", Column = "salary", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "salary_ix", NotNull = true)]
+        public virtual decimal Salary { get; set; }
 
         [Property(Name = "Season", Column = "season", TypeType = typeof(string), Length = 5,
             Index = "season_ix", NotNull = true)]

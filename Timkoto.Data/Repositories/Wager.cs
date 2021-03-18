@@ -10,9 +10,9 @@ namespace Timkoto.Data.Repositories
         [Generator(1, Class = "identity")]
         public virtual long Id { get; set; }
 
-        [Property(Name = "ContestId", Column = "contestId", TypeType = typeof(int),
+        [Property(Name = "ContestId", Column = "contestId", TypeType = typeof(long),
             Index = "contestId_ix", NotNull = true)]
-        public virtual int ContestId { get; set; }
+        public virtual long ContestId { get; set; }
 
         [Property(Name = "UserId", Column = "userId", TypeType = typeof(long),
             Index = "userId_ix", NotNull = true)]

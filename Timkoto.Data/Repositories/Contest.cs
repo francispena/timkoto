@@ -1,5 +1,9 @@
 ﻿using NHibernate.Mapping.Attributes;
 using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using NHibernate.Type;
+using Timkoto.Data.Enumerations;
 
 namespace Timkoto.Data.Repositories
 {
@@ -17,6 +21,19 @@ namespace Timkoto.Data.Repositories
         [Property(Name = "Sport", Column = "sport", TypeType = typeof(string), Length = 30,
             Index = "sport_ix", NotNull = true)]
         public virtual string Sport { get; set; }
+
+        [Property(Name = "SalaryCap", Column = "salaryCap", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "salaryCap_ix", NotNull = true)]
+        public virtual decimal SalaryCap { get; set; }
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        [Property(Name = "ContestState", Column = "contestState", TypeType = typeof(EnumStringType<ContestState>),
+            Index = "contestState_ix", Length = 20, NotNull = true)]
+        public virtual ContestState ContestState { get; set; }
+
+        [Property(Name = "EntryPoints", Column = "entryPoints", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "entryPoints_ix", NotNull = true)]
+        public virtual decimal EntryPoints { get; set; }
         
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]

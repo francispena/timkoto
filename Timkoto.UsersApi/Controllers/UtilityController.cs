@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using NHibernate;
-using NHibernate.Exceptions;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -26,13 +26,10 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly IPersistService _persistService;
 
-        private readonly ISessionFactory _sessionFactory;
-
-        public UtilityController(IHttpService httpService, IPersistService persistService, ISessionFactory sessionFactory)
+        public UtilityController(IHttpService httpService, IPersistService persistService)
         {
             _httpService = httpService;
             _persistService = persistService;
-            _sessionFactory = sessionFactory;
         }
 
         [Route("GetTeams")]
@@ -101,8 +98,13 @@ namespace Timkoto.UsersApi.Controllers
                 var teamIds = teams.Select(_ => _.Id).ToList();
                 var players = new List<NbaPlayer>();
 
+                Console.WriteLine(JsonConvert.SerializeObject(teamIds));
+
                 foreach (var teamId in teamIds)
                 {
+                    
+                    Console.WriteLine(teamId);
+
                     var response = await _httpService.GetAsync<RapidApiPlayers>(
                         $"https://api-nba-v1.p.rapidapi.com/players/teamId/{teamId}",
                         new Dictionary<string, string>
@@ -110,6 +112,8 @@ namespace Timkoto.UsersApi.Controllers
                             {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
                             {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
                         });
+
+                    await Task.Delay(1000);
 
                     var teamPlayers = response?.Api?.players?.Where(_ =>
                         _.leagues?.standard?.active == "1" && _.yearsPro != "0" && _.startNba != "0").ToList();
@@ -121,6 +125,26 @@ namespace Timkoto.UsersApi.Controllers
 
                     foreach (var player in teamPlayers)
                     {
+                        if (player.leagues.standard.pos.Contains("C"))
+                        {
+                            player.leagues.standard.pos = "C";
+                        }
+                        else if (player.leagues.standard.pos == "G")
+                        {
+                            player.leagues.standard.pos = "PG";
+                        }
+                        else if (player.leagues.standard.pos == "F")
+                        {
+                            player.leagues.standard.pos = "PF";
+                        }
+                        else if (player.leagues.standard.pos == "G-F")
+                        {
+                            player.leagues.standard.pos = "SF";
+                        }
+                        else if (player.leagues.standard.pos == "F-G")
+                        {
+                            player.leagues.standard.pos = "SG";
+                        }
                         players.Add(new NbaPlayer
                         {
                             Id = player.playerId,
@@ -194,10 +218,12 @@ namespace Timkoto.UsersApi.Controllers
                 var contest = new Contest
                 {
                     GameDate = dayOfGamesToGet,
-                    Sport = "Basketball"
+                    Sport = "Basketball",
+                    ContestState = ContestState.Upcoming,
+                    SalaryCap = 60000
                 };
 
-                var dbSession = _sessionFactory.OpenSession();
+                var dbSession = _persistService.GetSession();
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.SaveAsync(contest);
@@ -211,7 +237,7 @@ namespace Timkoto.UsersApi.Controllers
                         HTeamId = game.hTeam.teamId,
                         VTeamId = game.vTeam.teamId,
                         Id = game.gameId,
-                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC)
+                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
                     });
                 }
 

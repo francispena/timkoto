@@ -100,19 +100,7 @@ namespace Timkoto.UsersApi
             services.AddTransient<IHttpService, HttpService>();
             services.AddTransient<ICognitoUserStore, CognitoUserStore>();
             services.AddTransient<IOperatorService, OperatorService>();
-            
-            //services.AddSingleton(typeof(DbManager));
-            //services.AddTransient<ISessionFactory>(_ =>
-            //{
-            //    var dbManager = new DbManager();
-            //    return dbManager.SessionFactory;
-            //});
-
-            //services.AddTransient<ISession>(_ =>
-            //{
-            //    var dbManager = new DbManager();
-            //    return dbManager.SessionFactory.OpenSession();
-            //});
+            services.AddTransient<IContestService, ContestService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

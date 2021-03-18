@@ -91,6 +91,28 @@ namespace Timkoto.UsersApi.Models
                     return "ChangePassword succeeded.";
                 case Results.GameNotFound:
                     return "Game not found.";
+                case Results.NoContestTeamFound:
+                    return "No playing team found in contest.";
+                case Results.ContestTeamFound:
+                    return "Playing teams found in contest.";
+                case Results.NoLineUpToUpdate:
+                    return "There is no lineup to update.";
+                case Results.NotEnoughPoints:
+                    return "Not enough points to play, please contact your agent.";
+                case Results.NoContestFound:
+                    return "Invalid contest.";
+                case Results.ProcessingTransactionFailed:
+                    return "Processing transaction failed.";
+                case Results.PlayerLineUpCreated:
+                    return "Player lineup created.";
+                case Results.InvalidLineUpCount:
+                    return "Please select 9 players.";
+                case Results.InvalidOperatorId:
+                    return "Invalid operator Id.";
+                case Results.InvalidAgentID:
+                    return "Invalid agent Id.";
+                case Results.InvalidContestId:
+                    return "Invalid contest Id.";
             }
 
             return "";

@@ -25,6 +25,18 @@
         AuthenticationSucceeded,
         ChangePasswordSucceeded,
         ChangePasswordFailed,
-        GameNotFound
+        GameNotFound,
+        NoContestTeamFound,
+        ContestTeamFound,
+        NoLineUpToUpdate,
+        NotEnoughPoints,
+        NoContestFound,
+        ProcessingTransactionFailed,
+        PlayerLineUpCreated,
+        InvalidLineUpCount,
+        TeamNameMissing,
+        InvalidOperatorId,
+        InvalidAgentID,
+        InvalidContestId
     }
 }
