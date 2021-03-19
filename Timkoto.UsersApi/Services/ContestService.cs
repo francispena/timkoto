@@ -159,18 +159,9 @@ namespace Timkoto.UsersApi.Services
                 ContestId = request.LineUpTeam.ContestId,
                 UserId = request.LineUpTeam.UserId,
                 TeamName = request.LineUpTeam.TeamName,
-                LineupHash = hash
-            };
-
-            var wager = new Wager
-            {
-                OperatorId = request.LineUpTeam.OperatorId,
-                AgentId = request.LineUpTeam.AgentId,
+                LineupHash = hash,
                 Amount = 100,
-                AgentCommission = (decimal)(100 * 0.05),
-                UserId = request.LineUpTeam.UserId,
-                ContestId = request.LineUpTeam.ContestId,
-                IsPaid = true,
+                AgentCommission = (decimal)(100 * 0.05)
             };
 
             var dbSession = _persistService.GetSession();
@@ -241,15 +232,6 @@ namespace Timkoto.UsersApi.Services
 
                     var saveTransactionResult = await dbSession.SaveAsync(newTransaction);
                     if ((long)saveTransactionResult <= 0)
-                    {
-                        await tx.RollbackAsync();
-
-                        return GenericResponse.Create(false, HttpStatusCode.Forbidden,
-                            Results.ProcessingTransactionFailed);
-                    }
-
-                    var saveWagerResult = await dbSession.SaveAsync(wager);
-                    if ((long)saveWagerResult <= 0)
                     {
                         await tx.RollbackAsync();
 

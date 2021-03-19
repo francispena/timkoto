@@ -6,6 +6,8 @@ namespace Timkoto.UsersApi.Services.Interfaces
 {
     public interface ITransactionService
     {
-        Task<GenericResponse> AddTransaction(AddTransactionRequest request, List<string> messages);
+        Task<GenericResponse> AddTransaction(AddTransactionRequest request, bool limit, List<string> messages);
+
+        Task<GenericResponse> Balance(long userId, List<string> messages);
     }
 }

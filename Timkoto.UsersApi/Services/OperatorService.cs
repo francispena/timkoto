@@ -59,14 +59,17 @@ namespace Timkoto.UsersApi.Services
             }
 
             var sqlQuery =
-                $@"select w.ContestId, w.OperatorId, u.Email, u.UserName, w.AgentId, sum(w.amount) as Collectible, sum(w.agentCommission) as Commission,  sum(w.prize) as Prize 
-                    from wager w 
-                    inner join timkotodb.user u
-                    on u.id = w.agentId
-                    where w.contestId = {contest.Id} and w.operatorId = {operatorId}
-                    group by w.agentId, u.email, u.userName, w.contestId, w.operatorId;";
+                $@"select pt.ContestId, pt.OperatorId, u.Email, u.UserName, pt.AgentId, sum(pt.amount) as Collectible, 
+                    sum(pt.agentCommission) as Commission, sum(pt.prize) as Prize 
+	                    from 
+	                    playerTeam pt 
+                        inner join timkotodb.user u
+	                    on pt.agentId = u.id
+	                    where pt.contestId = {contest.Id} and pt.operatorId = {operatorId}
+	                    group by pt.agentId, u.email, u.userName, pt.contestId, pt.operatorId 
+	                    order by u.userName;";
 
-            var agents = await _persistService.SqlQuery<AgentPoints>(sqlQuery);
+            var agents = await _persistService.SqlQuery<ContestAgentPoints>(sqlQuery);
 
             if (agents == null || !agents.Any())
             {

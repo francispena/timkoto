@@ -39,6 +39,8 @@
         InvalidAgentID,
         InvalidContestId,
         AuthenticationError,
-        TeamSubmissionNotAccepted
+        TeamSubmissionNotAccepted,
+        TransactionFound,
+        AmountNotAccepted
     }
 }

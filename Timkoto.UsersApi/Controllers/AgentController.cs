@@ -43,5 +43,30 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
+        [Route("AgentPoints/{agentId}")]
+        [HttpGet]
+        public async Task<IActionResult> AgentPoints([FromRoute] long agentId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _agentService.GetAgentPoints(agentId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

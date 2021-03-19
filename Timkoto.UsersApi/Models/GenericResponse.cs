@@ -117,6 +117,8 @@ namespace Timkoto.UsersApi.Models
                     return "Login process error, please contact your agent.";
                 case Results.TeamSubmissionNotAccepted:
                     return "Team submission not accepted.";
+                case Results.AmountNotAccepted:
+                    return "Amount not accepted.";
             }
 
             return "";

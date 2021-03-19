@@ -66,8 +66,10 @@ namespace Timkoto.UsersApi.Services
 
             genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.CodeCreated);
             
+            var configuration = Startup.Configuration;
+
             genericResponse.Data = new {
-                Code = code
+                Code = $"{configuration["RegistrationLink"]}{code}"
             };
 
             return genericResponse;

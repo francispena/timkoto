@@ -34,10 +34,12 @@ namespace Timkoto.UsersApi.Services
             }
 
             var sqlQuery =
-                $@"select w.contestId, w.operatorId, w.agentId, u.email, u.userName,  w.amount, w.agentCommission, prize from wager w 
-                        inner join timkotodb.user u 
-                        on u.id = w.userId
-                        where w.contestId = {contest.Id} and w.operatorId = {operatorId} and w.agentId = {agentId};";
+                $@"select pt.userId as playerId, pt.agentId, u.operatorId, u.userName, pt.teamName, pt.teamRank, pt.score, pt.prize, pt.agentCommission, pt.amount
+                    from timkotodb.playerTeam pt
+                    inner join timkotodb.user u
+                    on u.id = pt.agentId
+                    where pt.operatorId = {operatorId} and pt.agentId = {agentId} and pt.contestId = {contest.Id}
+                    order by pt.teamName;";
 
             var players = await _persistService.SqlQuery<PlayerPoints>(sqlQuery);
 
@@ -62,6 +64,37 @@ namespace Timkoto.UsersApi.Services
                 .Single();
 
             genericResponse.Data = new { Players = players, Summary = totals };
+
+            return genericResponse;
+        }
+
+        public async Task<GenericResponse> GetAgentPoints(long agentId, List<string> messages)
+        {
+            GenericResponse genericResponse;
+
+            var sqlQuery =
+                $@"select c.gameDate, sum(pt.amount) as Collectible, sum(pt.agentCommission) as Commission, sum(pt.prize) as Prize 
+                    from contest c
+                    inner join playerTeam pt 
+                    on pt.contestId = c.id 
+                    where pt.agentId = {agentId}
+                    group by pt.agentId, c.gameDate
+                    order by c.gameDate desc;";
+
+            var agentPoints = await _persistService.SqlQuery<AgentPoints>(sqlQuery);
+
+            if (agentPoints == null || !agentPoints.Any())
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoAgentFound);
+
+                return genericResponse;
+            }
+
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.AgentsFound);
+
+            genericResponse.Data = new { AgentsPoints = agentPoints };
 
             return genericResponse;
         }

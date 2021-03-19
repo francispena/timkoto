@@ -30,10 +30,6 @@ namespace Timkoto.Data.Repositories
             Index = "teamName_ix", NotNull = true)]
         public virtual string TeamName { get; set; }
 
-        [Property(Name = "Points", Column = "points", TypeType = typeof(decimal), Scale = 2, Precision = 10,
-            Index = "points_ix", NotNull = true)]
-        public virtual decimal Points { get; set; }
-
         [Property(Name = "Score", Column = "score", TypeType = typeof(decimal), Scale = 2, Precision = 10,
             Index = "score_ix", NotNull = true)]
         public virtual decimal Score { get; set; }
@@ -41,6 +37,18 @@ namespace Timkoto.Data.Repositories
         [Property(Name = "TeamRank", Column = "teamRank", TypeType = typeof(int),
             Index = "teamRank_ix", NotNull = true)]
         public virtual int TeamRank { get; set; }
+
+        [Property(Name = "Prize", Column = "prize", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "prize_ix", NotNull = true)]
+        public virtual decimal Prize { get; set; }
+
+        [Property(Name = "Amount", Column = "amount", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "amount_ix", NotNull = true)]
+        public virtual decimal Amount { get; set; }
+
+        [Property(Name = "AgentCommission", Column = "agentCommission", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "agentCommission_ix", NotNull = true)]
+        public virtual decimal AgentCommission { get; set; }
 
         [Property(Name = "LineupHash", Column = "lineupHash", TypeType = typeof(string), Length = 50,
             Index = "lineupHash_ix", NotNull = true)]

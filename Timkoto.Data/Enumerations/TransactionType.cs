@@ -10,22 +10,22 @@ namespace Timkoto.Data.Enumerations
     public enum TransactionType
     {
         
-        [EnumMember(Value = "Wallet-Debit")]
+        [EnumMember(Value = "WalletDebit")]
         WalletDebit = 1,
 
-        [EnumMember(Value = "Wallet-Credit")]
+        [EnumMember(Value = "WalletCredit")]
         WalletCredit = 2,
 
-        [EnumMember(Value = "Commission-Debit")]
+        [EnumMember(Value = "CommissionDebit")]
         CommissionDebit = 3,
 
-        [EnumMember(Value = "Commission-Credit")]
+        [EnumMember(Value = "CommissionCredit")]
         CommissionCredit = 4,
 
-        [EnumMember(Value = "Salary-Debit")]
+        [EnumMember(Value = "SalaryDebit")]
         SalaryDebit = 5,
 
-        [EnumMember(Value = "Salary-Credit")]
+        [EnumMember(Value = "SalaryCredit")]
         SalaryCredit = 6
     }
 }
