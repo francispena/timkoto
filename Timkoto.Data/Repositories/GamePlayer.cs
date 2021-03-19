@@ -63,6 +63,11 @@ namespace Timkoto.Data.Repositories
             Index = "turnOvers_ix", NotNull = true)]
         public virtual decimal TurnOvers { get; set; }
 
+        [Property(Name = "TotalPoints", Column = "totalPoints", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "totalPoints_ix", NotNull = true)]
+        public virtual decimal TotalPoints { get; set; }
+
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

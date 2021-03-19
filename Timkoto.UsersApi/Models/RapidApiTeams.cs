@@ -1,25 +1,25 @@
 ﻿using System.Collections.Generic;
 
-namespace Timkoto.UsersApi.Models.Team
+namespace Timkoto.UsersApi.Models
 {
     public class RapidApiTeams
     {
-        public Api Api { get; set; }
+        public RapidApiTeamsApi Api { get; set; }
     }
 
     // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse); 
-    public class Standard
+    public class RapidApiTeamsStandard
     {
         public string confName { get; set; }
         public string divName { get; set; }
     }
 
-    public class Leagues
+    public class RapidApiTeamsLeagues
     {
-        public Standard standard { get; set; }
+        public RapidApiTeamsStandard standard { get; set; }
     }
 
-    public class Team
+    public class RapidApiTeamsTeam
     {
         public string city { get; set; }
         public string fullName { get; set; }
@@ -29,15 +29,15 @@ namespace Timkoto.UsersApi.Models.Team
         public string shortName { get; set; }
         public string allStar { get; set; }
         public string nbaFranchise { get; set; }
-        public Leagues leagues { get; set; }
+        public RapidApiTeamsLeagues leagues { get; set; }
     }
 
-    public class Api
+    public class RapidApiTeamsApi
     {
         public int status { get; set; }
         public string message { get; set; }
         public int results { get; set; }
         public List<string> filters { get; set; }
-        public List<Team> teams { get; set; }
+        public List<RapidApiTeamsTeam> teams { get; set; }
     }
 }

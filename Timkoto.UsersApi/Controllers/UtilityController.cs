@@ -10,11 +10,7 @@ using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
-using Timkoto.UsersApi.Models.Games;
-using Timkoto.UsersApi.Models.Player;
-using Timkoto.UsersApi.Models.Team;
-using Game = Timkoto.Data.Repositories.Game;
-
+using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
 {
@@ -26,10 +22,13 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly IPersistService _persistService;
 
-        public UtilityController(IHttpService httpService, IPersistService persistService)
+        private readonly IRapidNbaStatistics _rapidNbaStatistics;
+
+        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics)
         {
             _httpService = httpService;
             _persistService = persistService;
+            _rapidNbaStatistics = rapidNbaStatistics;
         }
 
         [Route("GetTeams")]
@@ -196,7 +195,14 @@ namespace Timkoto.UsersApi.Controllers
 
                 var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
 
-                var games = new List<Models.Games.Game>();
+                var contestToCheck = _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
+
+                if (contestToCheck != null)
+                {
+                    return StatusCode(403, "Contest for the exists.");
+                }
+
+                var games = new List<RapidApiGamesGame>();
 
                 foreach (var gameDate in gameDates)
                 {
@@ -208,6 +214,7 @@ namespace Timkoto.UsersApi.Controllers
                             {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
                         });
                     games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC) == dayOfGamesToGet));
+                    
                 }
 
                 if (!games.Any())
@@ -281,7 +288,6 @@ namespace Timkoto.UsersApi.Controllers
                         .ToList()
                 );
 
-
                 sqlInsert =
                     "INSERT INTO `gamePlayer` (`contestId`,`GameId`,`teamId`,`teamLocation`,`playerId`) VALUES ";
                 sqlValues =
@@ -318,6 +324,15 @@ namespace Timkoto.UsersApi.Controllers
             var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
 
             return today.ToString("yyyy-MM-dd");
+        }
+
+        [Route("GetLiveScores")]
+        [HttpGet]
+        public async Task<IActionResult> GetPlayerStats()
+        {
+            var result = await _rapidNbaStatistics.GetScores(new List<string>());
+
+            return Ok(result);
         }
     }
 }

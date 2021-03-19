@@ -134,6 +134,17 @@ namespace Timkoto.UsersApi.Services
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidContestId);
             }
+            
+            var contest = await _persistService.FindOne<Contest>(_ => _.Id == request.LineUpTeam.ContestId);
+
+            if (contest == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestFound);
+            }
+            if (contest.ContestState != ContestState.Upcoming)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TeamSubmissionNotAccepted);
+            }
 
             var isUpdate = request.LineUpTeam.PlayerTeamId > 0;
 
@@ -210,14 +221,6 @@ namespace Timkoto.UsersApi.Services
                     {
                         await tx.RollbackAsync();
                         return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NotEnoughPoints);
-                    }
-
-                    var contest = await _persistService.FindOne<Contest>(_ => _.Id == request.LineUpTeam.ContestId);
-
-                    if (contest == null)
-                    {
-                        await tx.RollbackAsync();
-                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestFound);
                     }
 
                     if (lastTransaction.Balance < contest.EntryPoints)

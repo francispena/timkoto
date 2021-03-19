@@ -113,6 +113,10 @@ namespace Timkoto.UsersApi.Models
                     return "Invalid agent Id.";
                 case Results.InvalidContestId:
                     return "Invalid contest Id.";
+                case Results.AuthenticationError:
+                    return "Login process error, please contact your agent.";
+                case Results.TeamSubmissionNotAccepted:
+                    return "Team submission not accepted.";
             }
 
             return "";

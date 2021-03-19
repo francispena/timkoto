@@ -37,6 +37,8 @@
         TeamNameMissing,
         InvalidOperatorId,
         InvalidAgentID,
-        InvalidContestId
+        InvalidContestId,
+        AuthenticationError,
+        TeamSubmissionNotAccepted
     }
 }

@@ -8,10 +8,10 @@ namespace Timkoto.UsersApi.Authorization.Interfaces
 {
     public interface ICognitoUserStore
     {
-        Task<Results> CreateAsync(string userName, string password, List<string> messages);
+        Task<Results> CreateAsync(string email, string password, List<string> messages);
 
-        Task<GenericResponse> AuthenticateAsync(string userName, string password, List<string> messages);
+        Task<GenericResponse> AuthenticateAsync(string email, string password, List<string> messages);
 
-        Task<GenericResponse> ChangePasswordAsync(string userName, string password, List<string> messages);
+        Task<GenericResponse> ChangePasswordAsync(string email, string password, List<string> messages);
     }
 }

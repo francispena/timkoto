@@ -101,6 +101,8 @@ namespace Timkoto.UsersApi
             services.AddTransient<ICognitoUserStore, CognitoUserStore>();
             services.AddTransient<IOperatorService, OperatorService>();
             services.AddTransient<IContestService, ContestService>();
+            services.AddTransient<IRapidNbaStatistics, RapidNbaStatistics>();
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

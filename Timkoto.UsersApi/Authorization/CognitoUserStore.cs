@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Timkoto.Data.Repositories;
+using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
@@ -17,18 +19,20 @@ namespace Timkoto.UsersApi.Authorization
     {
         private readonly AmazonCognitoIdentityProviderClient _providerClient = new AmazonCognitoIdentityProviderClient(RegionEndpoint.APSoutheast1);
 
+        private readonly IPersistService _persistService;
         private readonly string _userPoolId;
         private readonly string _clientId;
 
-        public CognitoUserStore()
+        public CognitoUserStore(IPersistService persistService)
         {
             var configuration = Startup.Configuration;
 
             _clientId = configuration["CognitoClientId"];
             _userPoolId = configuration["CognitoUserPoolId"];
+            _persistService = persistService;
         }
 
-        public async Task<Results> CreateAsync(string userName, string password, List<string> messages)
+        public async Task<Results> CreateAsync(string email, string password, List<string> messages)
         {
             var lambdaContext = Startup.LambdaContext;
 
@@ -41,9 +45,9 @@ namespace Timkoto.UsersApi.Authorization
                 {
                     ClientId = _clientId,
                     Password = password,
-                    Username = userName,
+                    Username = email,
                     UserAttributes = new List<AttributeType>
-                        {new AttributeType {Name = "email", Value = userName}}
+                        {new AttributeType {Name = "email", Value = email}}
                 };
 
                 messages.Add("start signUpResult");
@@ -58,7 +62,7 @@ namespace Timkoto.UsersApi.Authorization
 
                 var adminConfirmSignUpRequest = new AdminConfirmSignUpRequest
                 {
-                    Username = userName,
+                    Username = email,
                     UserPoolId = _userPoolId,
                 };
 
@@ -69,7 +73,7 @@ namespace Timkoto.UsersApi.Authorization
                     await _providerClient.AdminDeleteUserAsync(new AdminDeleteUserRequest
                     {
                         UserPoolId = _userPoolId,
-                        Username = userName
+                        Username = email
                     });
 
                     retVal = Results.AccountConfirmationInCognitoFailed;
@@ -92,10 +96,10 @@ namespace Timkoto.UsersApi.Authorization
             return retVal;
         }
 
-        public async Task<GenericResponse> AuthenticateAsync(string userName, string password, List<string> messages)
+        public async Task<GenericResponse> AuthenticateAsync(string email, string password, List<string> messages)
         {
             var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
-            var user = new CognitoUser(userName, _clientId, userPool, _providerClient);
+            var user = new CognitoUser(email, _clientId, userPool, _providerClient);
 
             var authRequest = new InitiateSrpAuthRequest
             {
@@ -108,15 +112,24 @@ namespace Timkoto.UsersApi.Authorization
 
             if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
             {
-                genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
-                genericResponse.Data = new
+                var userDb = await _persistService.FindOne<User>(_ => _.Email == email);
+                if (userDb == null)
                 {
-                    IdToken = authResponse?.AuthenticationResult?.IdToken
-                };
+                    genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationError);
+                }
+                else
+                {
+                    genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
+                    genericResponse.Data = new
+                    {
+                        IdToken = authResponse?.AuthenticationResult?.IdToken,
+                        User = userDb
+                    };
+                }
             }
             else
             {
-                genericResponse= GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+                genericResponse = GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
             }
 
             return genericResponse;

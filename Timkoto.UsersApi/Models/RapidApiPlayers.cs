@@ -1,42 +1,42 @@
 ﻿using System.Collections.Generic;
 
-namespace Timkoto.UsersApi.Models.Player
+namespace Timkoto.UsersApi.Models
 {
     public class RapidApiPlayers
     {
-        public Api Api { get; set; }
+        public RapidApiPlayersApi Api { get; set; }
     }
 
     // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse); 
-    public class Standard
+    public class RapidApiPlayersStandard
     {
         public string jersey { get; set; }
         public string active { get; set; }
         public string pos { get; set; }
     }
 
-    public class Sacramento
+    public class RapidApiPlayersSacramento
     {
         public string jersey { get; set; }
         public string active { get; set; }
         public string pos { get; set; }
     }
 
-    public class Vegas
+    public class RapidApiPlayersVegas
     {
         public string jersey { get; set; }
         public string active { get; set; }
         public string pos { get; set; }
     }
 
-    public class Leagues
+    public class RapidApiPlayersLeagues
     {
-        public Standard standard { get; set; }
-        public Sacramento sacramento { get; set; }
-        public Vegas vegas { get; set; }
+        public RapidApiPlayersStandard standard { get; set; }
+        public RapidApiPlayersSacramento sacramento { get; set; }
+        public RapidApiPlayersVegas vegas { get; set; }
     }
 
-    public class Player
+    public class RapidApiPlayersPlayer
     {
         public string firstName { get; set; }
         public string lastName { get; set; }
@@ -50,16 +50,16 @@ namespace Timkoto.UsersApi.Models.Player
         public string startNba { get; set; }
         public string heightInMeters { get; set; }
         public string weightInKilograms { get; set; }
-        public Leagues leagues { get; set; }
+        public RapidApiPlayersLeagues leagues { get; set; }
     }
 
-    public class Api
+    public class RapidApiPlayersApi
     {
         public int status { get; set; }
         public string message { get; set; }
         public int results { get; set; }
         public List<string> filters { get; set; }
-        public List<Player> players { get; set; }
+        public List<RapidApiPlayersPlayer> players { get; set; }
     }
 
 }
