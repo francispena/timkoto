@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -41,7 +42,7 @@ namespace Timkoto.UsersApi.Services
                     on ht.id = g.hteamid
                     inner join nbaTeam vt
                     on vt.id = g.vteamid
-                    where g.contestId = {contest.Id} order by g.startTime;";
+                    where g.contestId = '{contest.Id}' order by g.startTime;";
 
             var teams = await _persistService.SqlQuery<ContestTeam>(sqlQuery);
 
@@ -80,7 +81,7 @@ namespace Timkoto.UsersApi.Services
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where gp.contestId = {contest.Id};";
+                        where gp.contestId = '{contest.Id}';";
 
             var players = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 
@@ -269,6 +270,118 @@ namespace Timkoto.UsersApi.Services
             }
 
             return default;
+        }
+
+        public async Task<bool> RankTeams(List<string> messages)
+        {
+            try
+            {
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                if (contest == null)
+                {
+                    return false;
+                }
+
+                var sqlQuery =
+                    $@"select pl.operatorId, pl.playerTeamId, sum(gp.totalPoints) totalPoints
+                    from timkotodb.playerLineup pl
+                    inner join timkotodb.gamePlayer gp
+                    on gp.contestId = pl.contestId and gp.playerId = pl.playerId
+                    where pl.contestId = '{contest.Id}'
+                    group by pl.operatorId, pl.playerTeamId;";
+
+                var teamPoints = await _persistService.SqlQuery<TeamPoints>(sqlQuery);
+
+                //group by operatorId
+                var groupedTeamPoints = teamPoints.GroupBy(_ => _.OperatorId)
+                    .Select(g => new { OperatorId = g.Key, TeamsToRank = g.ToList() }).ToList();
+
+                var teamPointsToUpdate = new List<TeamPoints>();
+                
+                //process by operatorId
+                foreach (var groupedTeamPoint in groupedTeamPoints)
+                {
+                    var teamsToRank = groupedTeamPoint.TeamsToRank;
+
+                    var sortedTeamPoints = teamsToRank.OrderByDescending(_ => _.TotalPoints).ToArray();
+                    //rank
+                    sortedTeamPoints[0].TeamRank = 1;
+                    for (var i = 1; i < sortedTeamPoints.Length; i++)
+                    {
+                        sortedTeamPoints[i].TeamRank = sortedTeamPoints[i].TotalPoints == sortedTeamPoints[i - 1].TotalPoints
+                            ? sortedTeamPoints[i - 1].TeamRank
+                            : i + 1;
+                    }
+
+                    var prizePool = await _persistService.FindMany<PrizePool>(_ =>
+                        _.OperatorId == groupedTeamPoint.OperatorId && _.ContestId == contest.Id);
+                    
+                    if (prizePool == null || !prizePool.Any())
+                    {
+                        prizePool = await _persistService.FindMany<PrizePool>(_ =>
+                            _.OperatorId == groupedTeamPoint.OperatorId && _.ContestId == 0);
+                    }
+
+                    if (prizePool == null || !prizePool.Any())
+                    {
+                        return false;
+                    }
+
+                    var prizeQueue = new Queue();
+
+                    foreach (var prize in prizePool)
+                    {
+                        for (var i = prize.FromRank; i <= prize.ToRank; i++)
+                        {
+                            prizeQueue.Enqueue(prize.Prize);
+                        }
+                    }
+
+                    //group by rank
+                    var groupedTeamRank = sortedTeamPoints.GroupBy(_ => _.TeamRank)
+                        .Select(g => new { TeamRank = g.Key, RanksToPrize = g.ToList() }).ToList();
+
+                    //loop through each rank group
+                    foreach (var teamRank in groupedTeamRank.OrderBy(_ => _.TeamRank).ToList())
+                    {
+                        var rankPrize = 0m;
+                        for (var i = 0; i < teamRank.RanksToPrize.Count; i++)
+                        {
+                            rankPrize +=  Convert.ToDecimal(prizeQueue.Dequeue());
+                            
+                            if (prizeQueue.Count == 0)
+                            {
+                                break;
+                            }
+                        }
+
+                        foreach (var team in teamRank.RanksToPrize)
+                        {
+                            team.Prize = rankPrize / teamRank.RanksToPrize.Count;
+                        }
+
+                        if (prizeQueue.Count == 0)
+                        {
+                            break;
+                        }
+                    }
+
+                    teamPointsToUpdate.AddRange(groupedTeamRank.SelectMany(_ => _.RanksToPrize).ToList());
+                }
+
+                var sqlUpdate = string.Join(";", teamPointsToUpdate.Select(_ => $"UPDATE `timkotodb`.`playerTeam` SET `score` = '{_.TotalPoints}', `teamRank` = '{_.TeamRank}', `prize` = '{_.Prize}' WHERE (`id` = '{_.PlayerTeamId}')"));
+
+                var updateResult = await _persistService.ExecuteSql(sqlUpdate +";");
+
+                return updateResult;
+            }
+            catch (Exception ex)
+            {
+
+                return true;
+            }
+
+            return false;
         }
     }
 }

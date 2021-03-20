@@ -98,38 +98,56 @@ namespace Timkoto.UsersApi.Authorization
 
         public async Task<GenericResponse> AuthenticateAsync(string email, string password, List<string> messages)
         {
-            var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
-            var user = new CognitoUser(email, _clientId, userPool, _providerClient);
-
-            var authRequest = new InitiateSrpAuthRequest
-            {
-                Password = password
-            };
-
-            var authResponse = await user.StartWithSrpAuthAsync(authRequest).ConfigureAwait(false);
-
             GenericResponse genericResponse;
 
-            if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
+            try
             {
-                var userDb = await _persistService.FindOne<User>(_ => _.Email == email);
-                if (userDb == null)
+                var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
+                var user = new CognitoUser(email, _clientId, userPool, _providerClient);
+
+                var authRequest = new InitiateSrpAuthRequest
                 {
-                    genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationError);
+                    Password = password
+                };
+
+                var authResponse = await user.StartWithSrpAuthAsync(authRequest).ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
+                {
+                    var userDb = await _persistService.FindOne<User>(_ => _.Email == email);
+                    if (userDb == null)
+                    {
+                        genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden,
+                            Results.AuthenticationError);
+                    }
+                    else
+                    {
+                        genericResponse =
+                            GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
+                        genericResponse.Data = new
+                        {
+                            authResponse.AuthenticationResult?.IdToken,
+                            User = userDb
+                        };
+                    }
                 }
                 else
                 {
-                    genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
-                    genericResponse.Data = new
-                    {
-                        IdToken = authResponse?.AuthenticationResult?.IdToken,
-                        User = userDb
-                    };
+                    genericResponse =
+                        GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
                 }
             }
-            else
+            catch (NotAuthorizedException)
             {
-                genericResponse = GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+            }
+            catch (Exception ex)
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationError);
+                genericResponse.ExceptionMessage = ex.Message;
+                genericResponse.ExceptionStackTrace = ex.StackTrace;
             }
 
             return genericResponse;

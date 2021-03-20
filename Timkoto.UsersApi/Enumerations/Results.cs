@@ -41,6 +41,12 @@
         AuthenticationError,
         TeamSubmissionNotAccepted,
         TransactionFound,
-        AmountNotAccepted
+        AmountNotAccepted,
+        NoTeamFound,
+        TeamsFound,
+        NoTeamPlayersFound,
+        TeamPlayersFound,
+        NoAgentPointsFound,
+        AgentPointsFound
     }
 }

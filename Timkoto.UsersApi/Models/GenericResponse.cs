@@ -82,7 +82,7 @@ namespace Timkoto.UsersApi.Models
                 case Results.TransactionAdded:
                     return "Transaction Added.";
                 case Results.AuthenticationFailed:
-                    return "Invalid user and password.";
+                    return "Invalid user name and password.";
                 case Results.AuthenticationSucceeded:
                     return "Authentication succeeded.";
                 case Results.ChangePasswordFailed:
@@ -119,6 +119,18 @@ namespace Timkoto.UsersApi.Models
                     return "Team submission not accepted.";
                 case Results.AmountNotAccepted:
                     return "Amount not accepted.";
+                case Results.NoTeamFound:
+                    return "No team found for player.";
+                case Results.TeamsFound:
+                    return "Team found for player.";
+                case Results.NoTeamPlayersFound:
+                    return "No players found.";
+                case Results.TeamPlayersFound:
+                    return "Players found.";
+                case Results.AgentPointsFound:
+                    return "Agent points found.";
+                case Results.NoAgentPointsFound:
+                    return "No agent points found.";
             }
 
             return "";

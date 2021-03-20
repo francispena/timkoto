@@ -24,11 +24,14 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly IRapidNbaStatistics _rapidNbaStatistics;
 
-        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics)
+        private readonly IContestService _contestService;
+
+        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics, IContestService contestService)
         {
             _httpService = httpService;
             _persistService = persistService;
             _rapidNbaStatistics = rapidNbaStatistics;
+            _contestService = contestService;
         }
 
         [Route("GetTeams")]
@@ -331,6 +334,15 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> GetPlayerStats()
         {
             var result = await _rapidNbaStatistics.GetScores(new List<string>());
+
+            return Ok(result);
+        }
+
+        [Route("RankTeams")]
+        [HttpGet]
+        public async Task<IActionResult> RankTeams()
+        {
+            var result = await _contestService.RankTeams(new List<string>());
 
             return Ok(result);
         }

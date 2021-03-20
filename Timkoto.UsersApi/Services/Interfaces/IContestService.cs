@@ -11,5 +11,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<GenericResponse> GetPlayers(string gameDate, List<string> messages);
 
         Task<GenericResponse> SubmitLineUp(LineUpRequest request, List<string> messages);
+
+        Task<bool> RankTeams(List<string> messages);
     }
 }

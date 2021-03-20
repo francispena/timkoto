@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Amazon.CognitoIdentity.Model;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -59,7 +60,8 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                var authenticationResult = await _cognitoUserStore.AuthenticateAsync(request.Email, request.Password, messages);
+                var authenticationResult =
+                    await _cognitoUserStore.AuthenticateAsync(request.Email, request.Password, messages);
 
                 if (authenticationResult.IsSuccess)
                 {
@@ -67,7 +69,7 @@ namespace Timkoto.UsersApi.Controllers
                 }
                 else
                 {
-                    return Forbid();
+                    return StatusCode(403, authenticationResult);
                 }
             }
             catch (Exception ex)

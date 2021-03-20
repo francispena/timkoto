@@ -28,7 +28,7 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                result = await _playerService.GetPlayer(userId, messages);
+                result = await _playerService.GetUser(userId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
@@ -54,6 +54,56 @@ namespace Timkoto.UsersApi.Controllers
             try
             {
                 result = await _playerService.GetPlayers(operatorId, agentId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("Teams/{userId}/{contestId}")]
+        [HttpGet]
+        public async Task<IActionResult> Teams([FromRoute] long userId, [FromRoute] long contestId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _playerService.GetTeams(userId, contestId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("TeamPlayerStats/{contestId}/{userId}")]
+        [HttpGet]
+        public async Task<IActionResult> TeamPlayerStats([FromRoute] long contestId, [FromRoute] long userId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _playerService.GetTeamPlayerStats(contestId, userId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }

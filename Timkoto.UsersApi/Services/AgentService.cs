@@ -46,13 +46,13 @@ namespace Timkoto.UsersApi.Services
             if (players == null || !players.Any())
             {
                 genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoAgentFound);
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoPlayerFound);
 
                 return genericResponse;
             }
 
             genericResponse =
-                GenericResponse.Create(true, HttpStatusCode.OK, Results.AgentsFound);
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayersFound);
 
             var totals = players.GroupBy(q => 1)
                 .Select(g => new
@@ -86,13 +86,13 @@ namespace Timkoto.UsersApi.Services
             if (agentPoints == null || !agentPoints.Any())
             {
                 genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoAgentFound);
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoAgentPointsFound);
 
                 return genericResponse;
             }
 
             genericResponse =
-                GenericResponse.Create(true, HttpStatusCode.OK, Results.AgentsFound);
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.AgentPointsFound);
 
             genericResponse.Data = new { AgentsPoints = agentPoints };
 
