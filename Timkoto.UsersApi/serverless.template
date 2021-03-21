@@ -64,7 +64,8 @@
     "ApiURL": {
       "Description": "API endpoint URL for PROD environment",
       "Value": {
-        "Fn::Sub": "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/PROD/"
+          "Fn::If": ["isProd", {"Fn::Sub": "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/PROD/"},
+          {"Fn::Sub": "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/DEV/"}]
       }
     }
   }

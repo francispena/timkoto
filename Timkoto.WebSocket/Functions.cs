@@ -1,20 +1,17 @@
+using Amazon.ApiGatewayManagementApi;
+using Amazon.ApiGatewayManagementApi.Model;
+using Amazon.Lambda.APIGatewayEvents;
+using Amazon.Lambda.Core;
+using Amazon.Runtime;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-
-using Amazon.Lambda.Core;
-using Amazon.Lambda.APIGatewayEvents;
-
-using Amazon.Runtime;
-using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.Model;
-using Amazon.ApiGatewayManagementApi;
-using Amazon.ApiGatewayManagementApi.Model;
+using Timkoto.Data.Repositories;
+using Timkoto.Data.Services;
+using Timkoto.Data.Services.Interfaces;
 
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
@@ -24,17 +21,9 @@ namespace Timkoto.WebSocket
 {
     public class Functions
     {
-        public const string ConnectionIdField = "connectionId";
+        private readonly IPersistService _persistService;
 
-        /// <summary>
-        /// DynamoDB table used to store the open connection ids. More advanced use cases could store logged on user map to their connection id to implement direct message chatting.
-        /// </summary>
-        string ConnectionMappingTable { get; }
-
-        /// <summary>
-        /// DynamoDB service client used to store and retieve connection information from the ConnectionMappingTable
-        /// </summary>
-        IAmazonDynamoDB DDBClient { get; }
+        private static readonly DbSession _dbSession  = new DbSession();
 
         /// <summary>
         /// Factory func to create the AmazonApiGatewayManagementApiClient. This is needed to created per endpoint of the a connection. It is a factory to make it easy for tests
@@ -42,18 +31,15 @@ namespace Timkoto.WebSocket
         /// </summary>
         Func<string, IAmazonApiGatewayManagementApi> ApiGatewayManagementApiClientFactory { get; }
 
-
         /// <summary>
         /// Default constructor that Lambda will invoke.
         /// </summary>
         public Functions()
         {
-            DDBClient = new AmazonDynamoDBClient();
+            var sessionFactory = _dbSession.GetSessionFactory();
+            _persistService = new PersistService(sessionFactory);
 
-            // Grab the name of the DynamoDB from the environment variable setup in the CloudFormation template serverless.template
-            ConnectionMappingTable = System.Environment.GetEnvironmentVariable("TABLE_NAME");
-
-            this.ApiGatewayManagementApiClientFactory = (Func<string, AmazonApiGatewayManagementApiClient>)((endpoint) => 
+            ApiGatewayManagementApiClientFactory = (Func<string, AmazonApiGatewayManagementApiClient>)((endpoint) => 
             {
                 return new AmazonApiGatewayManagementApiClient(new AmazonApiGatewayManagementApiConfig
                 {
@@ -65,14 +51,10 @@ namespace Timkoto.WebSocket
         /// <summary>
         /// Constructor used for testing allow tests to pass in moq versions of the service clients.
         /// </summary>
-        /// <param name="ddbClient"></param>
-        /// <param name="apiGatewayManagementApiClientFactory"></param>
-        /// <param name="connectionMappingTable"></param>
-        public Functions(IAmazonDynamoDB ddbClient, Func<string, IAmazonApiGatewayManagementApi> apiGatewayManagementApiClientFactory, string connectionMappingTable)
+        /// <param name="apiGatewayManagementApiClientFactory">The API gateway management API client factory.</param>
+        public Functions(Func<string, IAmazonApiGatewayManagementApi> apiGatewayManagementApiClientFactory)
         {
-            this.DDBClient = ddbClient;
-            this.ApiGatewayManagementApiClientFactory = apiGatewayManagementApiClientFactory;
-            this.ConnectionMappingTable = connectionMappingTable;
+            ApiGatewayManagementApiClientFactory = apiGatewayManagementApiClientFactory;
         }
 
         public async Task<APIGatewayProxyResponse> OnConnectHandler(APIGatewayProxyRequest request, ILambdaContext context)
@@ -82,16 +64,14 @@ namespace Timkoto.WebSocket
                 var connectionId = request.RequestContext.ConnectionId;
                 context.Logger.LogLine($"ConnectionId: {connectionId}");
 
-                var ddbRequest = new PutItemRequest
+                var connection = new WsConnection
                 {
-                    TableName = ConnectionMappingTable,
-                    Item = new Dictionary<string, AttributeValue>
-                    {
-                        {ConnectionIdField, new AttributeValue{ S = connectionId}}
-                    }
+                    ConnectionId = connectionId
                 };
 
-                await DDBClient.PutItemAsync(ddbRequest);
+                var saveResult = await _persistService.Save(connection);
+
+                context.Logger.LogLine($"saveResult : {saveResult}");
 
                 return new APIGatewayProxyResponse
                 {
@@ -140,24 +120,18 @@ namespace Timkoto.WebSocket
                 var stream = new MemoryStream(UTF8Encoding.UTF8.GetBytes(data));
 
                 // List all of the current connections. In a more advanced use case the table could be used to grab a group of connection ids for a chat group.
-                var scanRequest = new ScanRequest
-                {
-                    TableName = ConnectionMappingTable,
-                    ProjectionExpression = ConnectionIdField
-                };
-
-                var scanResponse = await DDBClient.ScanAsync(scanRequest);
-
+           
                 // Construct the IAmazonApiGatewayManagementApi which will be used to send the message to.
                 var apiClient = ApiGatewayManagementApiClientFactory(endpoint);
 
                 // Loop through all of the connections and broadcast the message out to the connections.
                 var count = 0;
-                foreach (var item in scanResponse.Items)
+                var connections = await _persistService.FindMany<WsConnection>(_ => _.Id > 0);
+                foreach (var connection in connections)
                 {
                     var postConnectionRequest = new PostToConnectionRequest
                     {
-                        ConnectionId = item[ConnectionIdField].S,
+                        ConnectionId = connection.ConnectionId,
                         Data = stream
                     };
 
@@ -175,17 +149,9 @@ namespace Timkoto.WebSocket
                         // from our DynamoDB table.
                         if (e.StatusCode == HttpStatusCode.Gone)
                         {
-                            var ddbDeleteRequest = new DeleteItemRequest
-                            {
-                                TableName = ConnectionMappingTable,
-                                Key = new Dictionary<string, AttributeValue>
-                                {
-                                    {ConnectionIdField, new AttributeValue {S = postConnectionRequest.ConnectionId}}
-                                }
-                            };
-
                             context.Logger.LogLine($"Deleting gone connection: {postConnectionRequest.ConnectionId}");
-                            await DDBClient.DeleteItemAsync(ddbDeleteRequest);
+
+                            await _persistService.ExecuteSql($"delete from wsConnection where connectionId = '{postConnectionRequest.ConnectionId}';");
                         }
                         else
                         {
@@ -220,16 +186,7 @@ namespace Timkoto.WebSocket
                 var connectionId = request.RequestContext.ConnectionId;
                 context.Logger.LogLine($"ConnectionId: {connectionId}");
 
-                var ddbRequest = new DeleteItemRequest
-                {
-                    TableName = ConnectionMappingTable,
-                    Key = new Dictionary<string, AttributeValue>
-                    {
-                        {ConnectionIdField, new AttributeValue {S = connectionId}}
-                    }
-                };
-
-                await DDBClient.DeleteItemAsync(ddbRequest);
+                await _persistService.ExecuteSql($"delete from wsConnection where connectionId = '{connectionId}';");
 
                 return new APIGatewayProxyResponse
                 {

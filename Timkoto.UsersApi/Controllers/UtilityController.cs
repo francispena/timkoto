@@ -4,6 +4,9 @@ using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
@@ -355,6 +358,22 @@ namespace Timkoto.UsersApi.Controllers
             var result = await _contestService.RankTeams(new List<string>());
 
             return Ok(result);
+        }
+
+        [Route("TestSendWsMessage")]
+        [HttpPost]
+        public async Task<IActionResult> TestSendWsMessage()
+        {
+            var cws = new ClientWebSocket();
+
+            var cancelSource = new CancellationTokenSource();
+            var connectionUri = new Uri("wss://4a4vv008xj.execute-api.ap-southeast-1.amazonaws.com/Dev");
+            await cws.ConnectAsync(connectionUri, cancelSource.Token);
+
+            ArraySegment<byte> message = new ArraySegment<byte>(UTF8Encoding.UTF8.GetBytes("{\"message\":\"sendmessage\", \"data\":\"Hello from .NET ClientWebSocket\"}"));
+            await cws.SendAsync(message, WebSocketMessageType.Text, true, cancelSource.Token);
+
+            return Ok();
         }
 
         [Route("TestService")]

@@ -37,8 +37,8 @@ namespace Timkoto.UsersApi.Services
                 $@"select pt.userId as playerId, pt.agentId, u.operatorId, u.userName, pt.teamName, pt.teamRank, pt.score, pt.prize, pt.agentCommission, pt.amount
                     from timkotodb.playerTeam pt
                     inner join timkotodb.user u
-                    on u.id = pt.agentId
-                    where pt.operatorId = {operatorId} and pt.agentId = {agentId} and pt.contestId = {contest.Id}
+                    on u.id = pt.userId
+                    where pt.operatorId = '{operatorId}' and pt.agentId = '{agentId}' and pt.contestId = '{contest.Id}'
                     order by pt.teamName;";
 
             var players = await _persistService.SqlQuery<PlayerPoints>(sqlQuery);

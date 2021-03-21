@@ -3,37 +3,16 @@
   "Transform": "AWS::Serverless-2016-10-31",
   "Description": "An AWS Serverless Application.",
   "Parameters": {
-    "ConnectionMappingTableName": {
+     "Environment": {
       "Type": "String",
-      "Default": "SimpleChatConnections",
-      "Description": "The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters.",
-      "MinLength": "3",
-      "MaxLength": "50",
-      "AllowedPattern": "^[A-Za-z_]+$"
+      "Description": "Environment to deploy to",
+      "MinLength": "1"
     }
   },
+    "Conditions": {
+     "isProd" : {"Fn::Equals": [{"Ref": "Environment"}, "Production"]}
+  },
   "Resources": {
-    "ConnectionMappingTable": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": {
-          "Ref": "ConnectionMappingTableName"
-        },
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "connectionId",
-            "AttributeType": "S"
-          }
-        ],
-        "KeySchema": [
-          {
-            "AttributeName": "connectionId",
-            "KeyType": "HASH"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
-      }
-    },
     "OnConnectFunction": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -42,23 +21,26 @@
         "CodeUri": "",
         "MemorySize": 256,
         "Timeout": 30,
-        "Role": null,
+        "Role": "arn:aws:iam::185075008698:role/lambda-vpc-role",
+        "FunctionName": {"Fn::If": ["isProd", "TimkotoWebSocketApi_PROD", "TimkotoWebSocketApiConnect_DEV"]},
         "Policies": [
-          {
-            "DynamoDBCrudPolicy": {
-              "TableName": {
-                "Ref": "ConnectionMappingTableName"
-              }
-            }
-          }
+          "AWSLambdaFullAccess"
         ],
         "Environment": {
           "Variables": {
-            "TABLE_NAME": {
-              "Ref": "ConnectionMappingTableName"
+            "Environment":  {
+              "Ref": "Environment"
             }
           }
-        }
+        },
+        "VpcConfig": {
+			"SecurityGroupIds": [
+				"sg-b7e424fc"
+				],
+			"SubnetIds": [
+				"subnet-0a8c384fbd75a67ce"
+			]
+		}
       }
     },
     "OnDisconnectFunction": {
@@ -69,23 +51,26 @@
         "CodeUri": "",
         "MemorySize": 256,
         "Timeout": 30,
-        "Role": null,
+        "Role": "arn:aws:iam::185075008698:role/lambda-vpc-role",
+        "FunctionName": {"Fn::If": ["isProd", "TimkotoWebSocketApi_PROD", "TimkotoWebSocketApiDisconnect_DEV"]},
         "Policies": [
-          {
-            "DynamoDBCrudPolicy": {
-              "TableName": {
-                "Ref": "ConnectionMappingTableName"
-              }
-            }
-          }
+          "AWSLambdaFullAccess"
         ],
         "Environment": {
           "Variables": {
-            "TABLE_NAME": {
-              "Ref": "ConnectionMappingTableName"
+            "Environment":  {
+              "Ref": "Environment"
             }
           }
-        }
+        },
+        "VpcConfig": {
+			"SecurityGroupIds": [
+				"sg-b7e424fc"
+				],
+			"SubnetIds": [
+				"subnet-0a8c384fbd75a67ce"
+			]
+		}
       }
     },
     "SendMessageFunction": {
@@ -96,36 +81,32 @@
         "CodeUri": "",
         "MemorySize": 256,
         "Timeout": 30,
-        "Role": null,
+        "Role": "arn:aws:iam::185075008698:role/lambda-vpc-role",
+        "FunctionName": {"Fn::If": ["isProd", "TimkotoWebSocketApi_PROD", "TimkotoWebSocketApiSendMessage_DEV"]},
         "Policies": [
-          {
-            "DynamoDBCrudPolicy": {
-              "TableName": {
-                "Ref": "ConnectionMappingTableName"
-              }
-            }
-          },
-          {
-            "Statement": {
-              "Effect": "Allow",
-              "Action": "execute-api:ManageConnections",
-              "Resource": "arn:aws:execute-api:*:*:*/@connections/*"
-            }
-          }
+          "AWSLambdaFullAccess"
         ],
         "Environment": {
           "Variables": {
-            "TABLE_NAME": {
-              "Ref": "ConnectionMappingTableName"
+            "Environment":  {
+              "Ref": "Environment"
             }
           }
-        }
+        },
+        "VpcConfig": {
+			"SecurityGroupIds": [
+				"sg-b7e424fc"
+				],
+			"SubnetIds": [
+				"subnet-0a8c384fbd75a67ce"
+			]
+		}
       }
     },
-    "SimpleChatWebSocketApi": {
+    "TimKotoStatsApi": {
       "Type": "AWS::ApiGatewayV2::Api",
       "Properties": {
-        "Name": "SimpleChatWebSocket",
+        "Name": "TimkotoWebSocket",
         "ProtocolType": "WEBSOCKET",
         "RouteSelectionExpression": "$request.body.message"
       }
@@ -134,7 +115,7 @@
       "Type": "AWS::ApiGatewayV2::Route",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "RouteKey": "$connect",
         "AuthorizationType": "NONE",
@@ -156,7 +137,7 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "IntegrationType": "AWS_PROXY",
         "IntegrationUri": {
@@ -181,7 +162,7 @@
       "Type": "AWS::ApiGatewayV2::Route",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "RouteKey": "$disconnect",
         "AuthorizationType": "NONE",
@@ -203,7 +184,7 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "IntegrationType": "AWS_PROXY",
         "IntegrationUri": {
@@ -228,7 +209,7 @@
       "Type": "AWS::ApiGatewayV2::Route",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "RouteKey": "sendmessage",
         "AuthorizationType": "NONE",
@@ -250,7 +231,7 @@
       "Type": "AWS::ApiGatewayV2::Integration",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "IntegrationType": "AWS_PROXY",
         "IntegrationUri": {
@@ -280,7 +261,7 @@
       ],
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         }
       }
     },
@@ -288,19 +269,19 @@
       "Type": "AWS::ApiGatewayV2::Stage",
       "Properties": {
         "ApiId": {
-          "Ref": "SimpleChatWebSocketApi"
+          "Ref": "TimKotoStatsApi"
         },
         "DeploymentId": {
           "Ref": "Deployment"
         },
-        "StageName": "Prod"
+        "StageName": {"Fn::If": ["isProd", "Prod", "Dev"]}
       }
     },
     "OnConnectPermission": {
       "Type": "AWS::Lambda::Permission",
       "DependsOn": [
         "OnConnectFunction",
-        "SimpleChatWebSocketApi"
+        "TimKotoStatsApi"
       ],
       "Properties": {
         "Action": "lambda:InvokeFunction",
@@ -314,7 +295,7 @@
       "Type": "AWS::Lambda::Permission",
       "DependsOn": [
         "OnDisconnectFunction",
-        "SimpleChatWebSocketApi"
+        "TimKotoStatsApi"
       ],
       "Properties": {
         "Action": "lambda:InvokeFunction",
@@ -328,7 +309,7 @@
       "Type": "AWS::Lambda::Permission",
       "DependsOn": [
         "SendMessageFunction",
-        "SimpleChatWebSocketApi"
+        "TimKotoStatsApi"
       ],
       "Properties": {
         "Action": "lambda:InvokeFunction",
@@ -347,7 +328,7 @@
           [
             "wss://",
             {
-              "Ref": "SimpleChatWebSocketApi"
+              "Ref": "TimKotoStatsApi"
             },
             ".execute-api.",
             {
