@@ -5,6 +5,8 @@ namespace Timkoto.UsersApi.Services.Interfaces
 {
     public interface IRapidNbaStatistics
     {
-        Task<bool> GetScores(List<string> messages);
+        Task<bool> GetLiveStats(List<string> messages);
+
+        Task<bool> GetFinalStats(List<string> messages);
     }
 }

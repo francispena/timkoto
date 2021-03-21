@@ -20,6 +20,8 @@ namespace Timkoto.UsersApi.Models
 
         public dynamic Data { get; set; }
 
+        public string Tag { get; set; }
+
         public static GenericResponse Create(bool isSuccess, HttpStatusCode statusCode,
             Results result)
         {
@@ -131,6 +133,10 @@ namespace Timkoto.UsersApi.Models
                     return "Agent points found.";
                 case Results.NoAgentPointsFound:
                     return "No agent points found.";
+                case Results.PrizePoolFound:
+                    return "Prize pool found.";
+                case Results.PrizePoolNotSet:
+                    return "No prize pool set for the contest.";
             }
 
             return "";

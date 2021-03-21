@@ -124,6 +124,9 @@ namespace Timkoto.UsersApi.Authorization
                     {
                         genericResponse =
                             GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
+                        
+                        genericResponse.Tag = authResponse.AuthenticationResult?.AccessToken;
+                        
                         genericResponse.Data = new
                         {
                             authResponse.AuthenticationResult?.IdToken,

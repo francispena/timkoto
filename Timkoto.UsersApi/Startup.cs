@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Amazon.Lambda.Core;
+using Microsoft.AspNetCore.Http;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization;
@@ -89,6 +90,12 @@ namespace Timkoto.UsersApi
                 });
             });
 
+            services.Configure<CookiePolicyOptions>(options =>
+            {
+                options.CheckConsentNeeded = context => true;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+            });
+
             services.AddNHibernate(connectionString);
 
             services.AddTransient<IPersistService, PersistService>();
@@ -135,6 +142,7 @@ namespace Timkoto.UsersApi
             app.UseAuthorization();
             app.UseAuthentication();
 
+     
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }
     }

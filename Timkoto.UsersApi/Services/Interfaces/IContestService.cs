@@ -13,5 +13,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<GenericResponse> SubmitLineUp(LineUpRequest request, List<string> messages);
 
         Task<bool> RankTeams(List<string> messages);
+
+        Task<GenericResponse> PrizePool(List<string> messages);
     }
 }

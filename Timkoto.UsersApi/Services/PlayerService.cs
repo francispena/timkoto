@@ -74,7 +74,7 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task<GenericResponse> GetTeams(long userId, long contestId, List<string> messages)
+        public async Task<GenericResponse> GetTeamsInContest(long userId, long contestId, List<string> messages)
         {
             var genericResponse = new GenericResponse();
 
@@ -102,20 +102,22 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task<GenericResponse> GetTeamPlayerStats(long contestId, long userId, List<string> messages)
+        public async Task<GenericResponse> GetTeamPlayerStats(long playerTeamId, List<string> messages)
         {
             GenericResponse genericResponse;
 
             var sqlQuery =
-            $@"SELECT distinct concat(np.lastName, ', ', np.firstName) as playerName, nt.nickName as teamName, gp.points, gp.rebounds, 
-                    gp.assists, gp.steals, gp.blocks, gp.turnOvers, gp.totalPoints FROM timkotodb.playerLineup pl
-                    inner join timkotodb.gamePlayer gp
-                    on gp.playerId = pl.playerId and gp.contestId = pl.contestId 
-                    inner join timkotodb.nbaPlayer np
-                    on np.id = gp.playerId
-                    inner join timkotodb.nbaTeam nt
-                    on nt.id = np.teamId
-                    where pl.contestId = {contestId} and pl.userId = {userId};";
+            $@"SELECT concat(np.lastName, ', ', np.firstName) as playerName, nt.nickName as teamName, gp.points, gp.rebounds, 
+                gp.assists, gp.steals, gp.blocks, gp.turnOvers, gp.totalPoints FROM timkotodb.playerLineup pl
+                inner join timkotodb.gamePlayer gp
+                on gp.playerId = pl.playerId 
+                inner join timkotodb.nbaPlayer np
+                on np.id = gp.playerId
+                inner join timkotodb.nbaTeam nt
+                on nt.id = np.teamId
+                inner join timkotodb.playerTeam pt 
+                on pt.id = pl.playerTeamId 
+                where pt.id = {playerTeamId};";
 
             var teamPlayerStats = await _persistService.SqlQuery<PlayerStats>(sqlQuery);
 
@@ -134,5 +136,35 @@ namespace Timkoto.UsersApi.Services
 
             return genericResponse;
         }
+
+        public async Task<GenericResponse> GetAllTeams(long userId, List<string> messages)
+        {
+            var genericResponse = new GenericResponse();
+
+            var playerTeams =
+                await _persistService.FindMany<PlayerTeam>(_ => _.UserId == userId);
+
+            if (playerTeams == null || !playerTeams.Any())
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoTeamFound);
+
+                return genericResponse;
+            }
+
+            if (!playerTeams.Any())
+            {
+                return genericResponse;
+            }
+
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.TeamsFound);
+
+            genericResponse.Data = new { PlayerTeams = playerTeams.OrderBy(_ => _.TeamName).ToList() };
+
+            return genericResponse;
+        }
+
+
     }
 }

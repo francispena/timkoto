@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Timkoto.UsersApi", "Timkoto
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Timkoto.Data", "Timkoto.Data\Timkoto.Data.csproj", "{5280FFA1-ECEA-4665-8CBA-79072BA2AA00}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Timkoto.WebSocket", "Timkoto.WebSocket\Timkoto.WebSocket.csproj", "{DA756FD9-04AB-495A-817C-20573E899C9C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{5280FFA1-ECEA-4665-8CBA-79072BA2AA00}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5280FFA1-ECEA-4665-8CBA-79072BA2AA00}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5280FFA1-ECEA-4665-8CBA-79072BA2AA00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA756FD9-04AB-495A-817C-20573E899C9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA756FD9-04AB-495A-817C-20573E899C9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA756FD9-04AB-495A-817C-20573E899C9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA756FD9-04AB-495A-817C-20573E899C9C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

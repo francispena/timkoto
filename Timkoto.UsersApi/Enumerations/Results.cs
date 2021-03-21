@@ -47,6 +47,8 @@
         NoTeamPlayersFound,
         TeamPlayersFound,
         NoAgentPointsFound,
-        AgentPointsFound
+        AgentPointsFound,
+        PrizePoolNotSet,
+        PrizePoolFound
     }
 }

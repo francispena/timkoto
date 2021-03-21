@@ -11,8 +11,10 @@ namespace Timkoto.UsersApi.Services.Interfaces
 
         Task<GenericResponse> GetPlayers(long operatorId, long agentId, List<string> messages);
 
-        Task<GenericResponse> GetTeams(long userId, long contestId, List<string> messages);
-        
-        Task<GenericResponse> GetTeamPlayerStats(long contestId, long userId, List<string> messages);
+        Task<GenericResponse> GetTeamsInContest(long userId, long contestId, List<string> messages);
+
+        Task<GenericResponse> GetTeamPlayerStats(long playerTeamId, List<string> messages);
+
+        Task<GenericResponse> GetAllTeams(long userId, List<string> messages);
     }
 }

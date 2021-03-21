@@ -1,11 +1,11 @@
 ﻿using Amazon.Lambda.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Amazon.CognitoIdentity.Model;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -34,6 +34,9 @@ namespace Timkoto.UsersApi.Controllers
         {
             var messages = new List<string> { "UserController.AddUser", $"request - {JsonConvert.SerializeObject(request)}"};
             GenericResponse result;
+            
+            //validate token against DB
+            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
 
             try
             {
@@ -65,6 +68,17 @@ namespace Timkoto.UsersApi.Controllers
 
                 if (authenticationResult.IsSuccess)
                 {
+                    Response.Cookies.Append("HttpOnlyAccessToken", authenticationResult.Tag, new CookieOptions
+                    {
+                        Path = "/",
+                        HttpOnly = false,
+                        IsEssential = true,
+                        Expires = DateTime.Now.AddMonths(1),
+                        Secure = true
+                    });
+
+                    authenticationResult.Tag = null;
+
                     return Ok(authenticationResult);
                 }
                 else

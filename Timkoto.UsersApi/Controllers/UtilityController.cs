@@ -10,6 +10,7 @@ using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
+using Timkoto.UsersApi.Services;
 using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
@@ -329,11 +330,20 @@ namespace Timkoto.UsersApi.Controllers
             return today.ToString("yyyy-MM-dd");
         }
 
-        [Route("GetLiveScores")]
+        [Route("GetLiveStats")]
         [HttpGet]
-        public async Task<IActionResult> GetPlayerStats()
+        public async Task<IActionResult> GetLiveStats()
         {
-            var result = await _rapidNbaStatistics.GetScores(new List<string>());
+            var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
+
+            return Ok(result);
+        }
+
+        [Route("GetFinalStats")]
+        [HttpGet]
+        public async Task<IActionResult> GetFinalStats()
+        {
+            var result = await _rapidNbaStatistics.GetFinalStats(new List<string>());
 
             return Ok(result);
         }
@@ -343,6 +353,16 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> RankTeams()
         {
             var result = await _contestService.RankTeams(new List<string>());
+
+            return Ok(result);
+        }
+
+        [Route("TestService")]
+        [HttpGet]
+        public async Task<IActionResult> TestService()
+        {
+            var emailService = new EmailService();
+            var result  = await emailService.SendEmail();
 
             return Ok(result);
         }
