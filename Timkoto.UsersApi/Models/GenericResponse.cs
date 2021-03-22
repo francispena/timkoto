@@ -137,6 +137,10 @@ namespace Timkoto.UsersApi.Models
                     return "Prize pool found.";
                 case Results.PrizePoolNotSet:
                     return "No prize pool set for the contest.";
+                case Results.EmailSent:
+                    return "Email sent.";
+                case Results.EmailSendingFailed:
+                    return "Sending of email failed.";
             }
 
             return "";

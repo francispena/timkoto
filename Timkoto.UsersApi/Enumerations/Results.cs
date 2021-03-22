@@ -49,6 +49,8 @@
         NoAgentPointsFound,
         AgentPointsFound,
         PrizePoolNotSet,
-        PrizePoolFound
+        PrizePoolFound,
+        EmailSent,
+        EmailSendingFailed
     }
 }

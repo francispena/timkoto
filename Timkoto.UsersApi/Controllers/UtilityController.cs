@@ -381,7 +381,7 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> TestService()
         {
             var emailService = new EmailService();
-            var result  = await emailService.SendEmail();
+            var result  = await emailService.SendRegistrationLink("francisgail.pena@yahoo.com", "https://timkoto.com/register/5623867386723675396", new List<string>());
 
             return Ok(result);
         }

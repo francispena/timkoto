@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -14,9 +15,12 @@ namespace Timkoto.UsersApi.Controllers
     {
         private readonly IRegistrationCodeService _registrationCodeService;
 
-        public RegistrationCodeController(IRegistrationCodeService registrationCodeService)
+        private readonly IEmailService _emailService;
+
+        public RegistrationCodeController(IRegistrationCodeService registrationCodeService, IEmailService emailService)
         {
             _registrationCodeService = registrationCodeService;
+            _emailService = emailService;
         }
 
         [Route("{id}")]
@@ -36,6 +40,40 @@ namespace Timkoto.UsersApi.Controllers
                 result = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("sendEmail")]
+        [HttpPost]
+        public async Task<IActionResult> SendEmail([FromBody] EmailRegLinkRequest request)
+        {
+            var messages = new List<string>();
+            GenericResponse retVal;
+
+            try
+            {
+                var result = await _emailService.SendRegistrationLink(request.EmailAddress, request.Link, messages);
+
+                if (result)
+                {
+                    retVal = GenericResponse.Create(true, HttpStatusCode.OK, Results.EmailSent);
+                    return Ok(retVal);
+                }
+                else
+                {
+                    retVal = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.EmailSendingFailed);
+                    return StatusCode(403, retVal);
+                }
+            }
+            catch (Exception ex)
+            {
+                retVal = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, retVal);
             }
             finally
             {
