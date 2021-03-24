@@ -14,6 +14,10 @@ namespace Timkoto.Data.Repositories
             Index = "ConnectionId_ix", NotNull = true)]
         public virtual string ConnectionId { get; set; }
 
+        [Property(Name = "OperatorId", Column = "operatorId", TypeType = typeof(string), Length = 10,
+            Index = "operatorId_ix", NotNull = true)]
+        public virtual string OperatorId { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

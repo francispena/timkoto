@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
@@ -14,9 +15,15 @@ namespace Timkoto.UsersApi.Services
     {
         private readonly IPersistService _persistService;
 
-        public PlayerService(IPersistService persistService)
+        private readonly ITransactionService _transactionService;
+
+        private readonly IContestService _contestService;
+
+        public PlayerService(IPersistService persistService, ITransactionService transactionService, IContestService contestService)
         {
             _persistService = persistService;
+            _transactionService = transactionService;
+            _contestService = contestService;
         }
 
         public async Task<GenericResponse> GetUser(long userId, List<string> messages)
@@ -165,6 +172,35 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
+        public async Task<GenericResponse> GetHomePageData(long operatorId, long userId, List<string> messages)
+        {
+            var user = _persistService.FindOne<User>(_ =>
+                _.IsActive && _.UserType == UserType.Player && _.Id == userId);
+            if (user == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.OK, Results.PlayerNotFound);
+            }
 
+            var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
+
+            var balance = await _transactionService.Balance(userId, messages);
+
+            var prizePool = await _contestService.PrizePool(operatorId, messages);
+
+            var contest = await _persistService.FindOne<Contest>(_ =>
+                _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+
+            var teams = await _contestService.GetGames(contest.Id, messages);
+
+            genericResponse.Data  = new 
+            {
+                balance.Data.Balance,
+                prizePool.Data.PrizePool,
+                contest,
+                teams.Data.Teams,
+            };
+
+            return genericResponse;
+        }
     }
 }

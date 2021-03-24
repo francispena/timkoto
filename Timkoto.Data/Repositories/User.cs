@@ -43,6 +43,10 @@ namespace Timkoto.Data.Repositories
             Index = "operatorId_ix", NotNull = false)]
         public virtual long OperatorId { get; set; }
 
+        [Property(Name = "Points", Column = "points", TypeType = typeof(decimal), Precision = 10, Scale = 2,
+            Index = "points_ix")]
+        public virtual decimal Points { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

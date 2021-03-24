@@ -233,15 +233,18 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     GameDate = dayOfGamesToGet,
                     Sport = "Basketball",
-                    ContestState = ContestState.Upcoming,
+                    ContestState = ContestState.Scheduled,
                     SalaryCap = 60000
                 };
+
+                var operators =
+                    await _persistService.FindMany<User>(_ => _.IsActive && _.UserType == UserType.Operator);
 
                 var dbSession = _persistService.GetSession();
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.SaveAsync(contest);
-
+                
                 var dbGames = new List<Game>();
                 foreach (var game in games)
                 {
@@ -302,6 +305,18 @@ namespace Timkoto.UsersApi.Controllers
 
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
 
+                foreach (var @operator in operators)
+                {
+                    var contestPool = new ContestPool
+                    {
+                        ContestId = contest.Id,
+                        OperatorId = @operator.Id,
+                        ContestPrizeId = 1
+                    };
+
+                    await dbSession.SaveAsync(contestPool);
+                }
+
                 await tx.CommitAsync();
                 
                 return Ok(true);
@@ -352,7 +367,7 @@ namespace Timkoto.UsersApi.Controllers
         }
 
         [Route("RankTeams")]
-        [HttpGet]
+        [HttpPost]
         public async Task<IActionResult> RankTeams()
         {
             var result = await _contestService.RankTeams(new List<string>());
@@ -360,18 +375,21 @@ namespace Timkoto.UsersApi.Controllers
             return Ok(result);
         }
 
-        [Route("TestSendWsMessage")]
+        [Route("RankAndSetPrizes")]
         [HttpPost]
-        public async Task<IActionResult> TestSendWsMessage()
+        public async Task<IActionResult> RankAndSetPrizes()
         {
-            var cws = new ClientWebSocket();
+            var result = await _contestService.RankAndSetPrizes(new List<string>());
 
-            var cancelSource = new CancellationTokenSource();
-            var connectionUri = new Uri("wss://4a4vv008xj.execute-api.ap-southeast-1.amazonaws.com/Dev");
-            await cws.ConnectAsync(connectionUri, cancelSource.Token);
+            return Ok(result);
+        }
 
-            ArraySegment<byte> message = new ArraySegment<byte>(UTF8Encoding.UTF8.GetBytes("{\"message\":\"sendmessage\", \"data\":\"Hello from .NET ClientWebSocket\"}"));
-            await cws.SendAsync(message, WebSocketMessageType.Text, true, cancelSource.Token);
+
+        [Route("BroadcastRanks")]
+        [HttpPost]
+        public async Task<IActionResult> BroadcastRanks()
+        {
+            await _contestService.BroadcastRanks(new List<string>());
 
             return Ok();
         }

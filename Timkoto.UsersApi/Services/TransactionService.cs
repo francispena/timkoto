@@ -43,14 +43,32 @@ namespace Timkoto.UsersApi.Services
             {
                 Amount = request.Amount,
                 OperatorId = request.OperatorId,
+                AgentId = request.AgentId,
                 UserType = request.UserType,
                 TransactionType = request.TransactionType,
                 UserId = request.UserId,
                 Balance = lastTransaction?.Balance + request.Amount ?? request.Amount
             };
 
-            var result = await _persistService.Save(newTransaction);
+            var user = await _persistService.FindOne<User>(_ => _.Id == request.UserId);
+            
+            user.Points = newTransaction.Balance;
 
+            var dbSession = _persistService.GetSession();
+
+            var result = 0L;
+            var tx = dbSession.BeginTransaction();
+            try
+            {
+                await dbSession.UpdateAsync(user);
+                result = (long)await dbSession.SaveAsync(newTransaction);
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+            }
+            
             return result > 0
                  ? GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionAdded)
                  : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AddTransactionFailed);

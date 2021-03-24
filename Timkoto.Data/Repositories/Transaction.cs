@@ -18,6 +18,10 @@ namespace Timkoto.Data.Repositories
             Index = "operatorId_ix", NotNull = true)]
         public virtual long OperatorId { get; set; }
 
+        [Property(Name = "AgentId", Column = "agentId", TypeType = typeof(long),
+            Index = "agentId_ix", NotNull = true)]
+        public virtual long AgentId { get; set; }
+
         [Property(Name = "UserId", Column = "userId", TypeType = typeof(long),
             Index = "userId_ix", NotNull = true)]
         public virtual long UserId { get; set; }

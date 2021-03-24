@@ -19,16 +19,16 @@ namespace Timkoto.UsersApi.Controllers
             _contestService = contestService;
         }
 
-        [Route("Teams/{gameDate}")]
+        [Route("Teams/{contestId}")]
         [HttpGet]
-        public async Task<IActionResult> GetGames([FromRoute] string gameDate)
+        public async Task<IActionResult> GetGames([FromRoute] long contestId)
         {
             var messages = new List<string>();
             GenericResponse result;
 
             try
             {
-                result = await _contestService.GetGames(gameDate, messages);
+                result = await _contestService.GetGames(contestId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
@@ -44,16 +44,16 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        [Route("Players/{gameDate}")]
+        [Route("Players/{contestId}")]
         [HttpGet]
-        public async Task<IActionResult> GetPlayers([FromRoute] string gameDate)
+        public async Task<IActionResult> GetPlayers([FromRoute] long contestId)
         {
             var messages = new List<string>();
             GenericResponse result;
 
             try
             {
-                result = await _contestService.GetPlayers(gameDate, messages);
+                result = await _contestService.GetPlayers(contestId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
@@ -94,16 +94,16 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        [Route("PrizePool")]
+        [Route("PrizePool/{operatorId}")]
         [HttpGet]
-        public async Task<IActionResult> GetPrizePool()
+        public async Task<IActionResult> GetPrizePool([FromRoute] long operatorId)
         {
             var messages = new List<string>();
             GenericResponse result;
 
             try
             {
-                result = await _contestService.PrizePool(messages);
+                result = await _contestService.PrizePool(operatorId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
@@ -119,5 +119,29 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
+        [Route("TeamRanks/{operatorId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetTeamRanks([FromRoute] long operatorId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _contestService.TeamRanks(operatorId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

@@ -51,7 +51,8 @@ namespace Timkoto.UsersApi.Services
                 IsActive = true,
                 OperatorId = registrationCode.OperatorId,
                 AgentId = registrationCode.AgentId,
-                UserType = registrationCode.UserType
+                UserType = registrationCode.UserType,
+                Points = 0m
             };
 
             var result = await _persistService.Save(user);

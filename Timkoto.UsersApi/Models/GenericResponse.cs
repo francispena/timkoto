@@ -141,6 +141,8 @@ namespace Timkoto.UsersApi.Models
                     return "Email sent.";
                 case Results.EmailSendingFailed:
                     return "Sending of email failed.";
+                case Results.PlayerNotFound:
+                    return "Player record not found.";
             }
 
             return "";

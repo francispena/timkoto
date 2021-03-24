@@ -51,6 +51,7 @@
         PrizePoolNotSet,
         PrizePoolFound,
         EmailSent,
-        EmailSendingFailed
+        EmailSendingFailed,
+        PlayerNotFound
     }
 }

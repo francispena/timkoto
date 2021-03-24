@@ -123,7 +123,7 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("TeamPlayerStats/{playerTeamId}")]
         [HttpGet]
-        public async Task<IActionResult> TeamPlayerStats([FromRoute] long playerTeamId, [FromRoute] long userId)
+        public async Task<IActionResult> TeamPlayerStats([FromRoute] long playerTeamId)
         {
             var messages = new List<string>();
             GenericResponse result;
@@ -131,6 +131,31 @@ namespace Timkoto.UsersApi.Controllers
             try
             {
                 result = await _playerService.GetTeamPlayerStats(playerTeamId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("GetHomePageData/{operatorId}/{userId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetHomePageData([FromRoute] long operatorId, [FromRoute] long userId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _playerService.GetHomePageData(operatorId, userId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }

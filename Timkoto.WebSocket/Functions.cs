@@ -9,6 +9,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
@@ -23,7 +24,7 @@ namespace Timkoto.WebSocket
     {
         private readonly IPersistService _persistService;
 
-        private static readonly DbSession _dbSession  = new DbSession();
+        private static readonly DbSession _dbSession = new DbSession();
 
         /// <summary>
         /// Factory func to create the AmazonApiGatewayManagementApiClient. This is needed to created per endpoint of the a connection. It is a factory to make it easy for tests
@@ -39,7 +40,7 @@ namespace Timkoto.WebSocket
             var sessionFactory = _dbSession.GetSessionFactory();
             _persistService = new PersistService(sessionFactory);
 
-            ApiGatewayManagementApiClientFactory = (Func<string, AmazonApiGatewayManagementApiClient>)((endpoint) => 
+            ApiGatewayManagementApiClientFactory = (Func<string, AmazonApiGatewayManagementApiClient>)((endpoint) =>
             {
                 return new AmazonApiGatewayManagementApiClient(new AmazonApiGatewayManagementApiConfig
                 {
@@ -64,14 +65,25 @@ namespace Timkoto.WebSocket
                 var connectionId = request.RequestContext.ConnectionId;
                 context.Logger.LogLine($"ConnectionId: {connectionId}");
 
-                var connection = new WsConnection
+                var operatorId = String.Empty;
+                var hasOperatorId = request.QueryStringParameters?.TryGetValue("operatorId", out operatorId);
+
+                if (hasOperatorId.HasValue && hasOperatorId.Value && !string.IsNullOrWhiteSpace(operatorId))
                 {
-                    ConnectionId = connectionId
-                };
+                    var connection = new WsConnection
+                    {
+                        ConnectionId = connectionId,
+                        OperatorId = operatorId
+                    };
+                    await _persistService.Save(connection);
+                }
 
-                var saveResult = await _persistService.Save(connection);
-
-                context.Logger.LogLine($"saveResult : {saveResult}");
+                //var connection = new WsConnection
+                //{
+                //    ConnectionId = connectionId,
+                //    OperatorId = "1"
+                //};
+                //await _persistService.Save(connection);
 
                 return new APIGatewayProxyResponse
                 {
@@ -90,24 +102,25 @@ namespace Timkoto.WebSocket
                 };
             }
         }
-    
 
         public async Task<APIGatewayProxyResponse> SendMessageHandler(APIGatewayProxyRequest request, ILambdaContext context)
         {
             try
             {
-                // Construct the API Gateway endpoint that incoming message will be broadcasted to.
                 var domainName = request.RequestContext.DomainName;
                 var stage = request.RequestContext.Stage;
                 var endpoint = $"https://{domainName}/{stage}";
                 context.Logger.LogLine($"API Gateway management endpoint: {endpoint}");
 
-                // The body will look something like this: {"message":"sendmessage", "data":"What are you doing?"}
-                JsonDocument message = JsonDocument.Parse(request.Body);
+                var message = JsonDocument.Parse(request.Body);
+                context.Logger.LogLine($"request.Body: {request.Body}");
 
-                // Grab the data from the JSON body which is the message to broadcasted.
-                JsonElement dataProperty;
-                if (!message.RootElement.TryGetProperty("data", out dataProperty))
+                if (request.QueryStringParameters != null)
+                {
+                    context.Logger.LogLine($"request.QueryStringParameters: {JsonConvert.SerializeObject(request.QueryStringParameters)}");
+                }
+
+                if (!message.RootElement.TryGetProperty("data", out var dataProperty))
                 {
                     context.Logger.LogLine("Failed to find data element in JSON document");
                     return new APIGatewayProxyResponse
@@ -117,16 +130,20 @@ namespace Timkoto.WebSocket
                 }
 
                 var data = dataProperty.GetString();
-                var stream = new MemoryStream(UTF8Encoding.UTF8.GetBytes(data));
+                var stream = new MemoryStream(Encoding.UTF8.GetBytes(data));
 
-                // List all of the current connections. In a more advanced use case the table could be used to grab a group of connection ids for a chat group.
-           
-                // Construct the IAmazonApiGatewayManagementApi which will be used to send the message to.
                 var apiClient = ApiGatewayManagementApiClientFactory(endpoint);
 
-                // Loop through all of the connections and broadcast the message out to the connections.
+                var operatorId = string.Empty;
+                var hasOperatorId = request.QueryStringParameters?.TryGetValue("operatorId", out operatorId);
+                if (string.IsNullOrWhiteSpace(operatorId))
+                {
+                    return null;
+                }
+
                 var count = 0;
-                var connections = await _persistService.FindMany<WsConnection>(_ => _.Id > 0);
+                var connections = await _persistService.FindMany<WsConnection>(_ => _.Id > 0 && _.OperatorId == operatorId);
+                //var connections = await _persistService.FindMany<WsConnection>(_ => _.Id > 0);
                 foreach (var connection in connections)
                 {
                     var postConnectionRequest = new PostToConnectionRequest
@@ -144,13 +161,9 @@ namespace Timkoto.WebSocket
                     }
                     catch (AmazonServiceException e)
                     {
-                        // API Gateway returns a status of 410 GONE then the connection is no
-                        // longer available. If this happens, delete the identifier
-                        // from our DynamoDB table.
                         if (e.StatusCode == HttpStatusCode.Gone)
                         {
                             context.Logger.LogLine($"Deleting gone connection: {postConnectionRequest.ConnectionId}");
-
                             await _persistService.ExecuteSql($"delete from wsConnection where connectionId = '{postConnectionRequest.ConnectionId}';");
                         }
                         else

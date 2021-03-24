@@ -26,10 +26,6 @@ namespace Timkoto.Data.Repositories
             Index = "salaryCap_ix", NotNull = true)]
         public virtual decimal SalaryCap { get; set; }
 
-        [Property(Name = "PrizePoolId", Column = "prizePoolId", TypeType = typeof(long),
-            Index = "prizePoolId_ix", NotNull = true)]
-        public virtual long PrizePoolId { get; set; }
-
         [JsonConverter(typeof(StringEnumConverter))]
         [Property(Name = "ContestState", Column = "contestState", TypeType = typeof(EnumStringType<ContestState>),
             Index = "contestState_ix", Length = 20, NotNull = true)]

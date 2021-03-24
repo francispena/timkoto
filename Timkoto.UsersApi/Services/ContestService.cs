@@ -3,7 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -22,18 +26,9 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<GenericResponse> GetGames(string gameDate, List<string> messages)
+        public async Task<GenericResponse> GetGames(long contestId, List<string> messages)
         {
             GenericResponse genericResponse;
-
-            var contest = await _persistService.FindOne<Contest>(_ => _.GameDate == gameDate);
-            if (contest == null)
-            {
-                genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.GameNotFound);
-
-                return genericResponse;
-            }
 
             var sqlQuery =
                 $@"SELECT  ht.fullName as homeTeamName, ht.nickname as homeTeamNickName, vt.fullName as visitorTeamName, vt.nickname as visitorTeamNickName, 
@@ -42,7 +37,7 @@ namespace Timkoto.UsersApi.Services
                     on ht.id = g.hteamid
                     inner join nbaTeam vt
                     on vt.id = g.vteamid
-                    where g.contestId = '{contest.Id}' order by g.startTime;";
+                    where g.contestId = '{contestId}' order by g.startTime;";
 
             var teams = await _persistService.SqlQuery<ContestTeam>(sqlQuery);
 
@@ -62,18 +57,9 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task<GenericResponse> GetPlayers(string gameDate, List<string> messages)
+        public async Task<GenericResponse> GetPlayers(long contestId, List<string> messages)
         {
             GenericResponse genericResponse;
-
-            var contest = await _persistService.FindOne<Contest>(_ => _.GameDate == gameDate);
-            if (contest == null)
-            {
-                genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.GameNotFound);
-
-                return genericResponse;
-            }
 
             var sqlQuery =
                 $@"SELECT np.id as playerId, concat(lastName, ', ', firstName) as playerName, np.jersey, nt.nickName as team, np.position, gp.salary FROM timkotodb.gamePlayer gp 
@@ -81,7 +67,7 @@ namespace Timkoto.UsersApi.Services
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where gp.contestId = '{contest.Id}';";
+                        where gp.contestId = '{contestId}';";
 
             var players = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 
@@ -272,7 +258,7 @@ namespace Timkoto.UsersApi.Services
             return default;
         }
 
-        public async Task<bool> RankTeams(List<string> messages)
+        public async Task<bool> RankAndSetPrizes(List<string> messages)
         {
             try
             {
@@ -313,11 +299,20 @@ namespace Timkoto.UsersApi.Services
                             : i + 1;
                     }
 
-                    var prizePool = await _persistService.FindMany<PrizePool>(_ => _.PrizePoolId == contest.PrizePoolId);
+                    var contestPool =
+                        await _persistService.FindOne<ContestPool>(_ =>
+                            _.ContestId == contest.Id && _.OperatorId == groupedTeamPoint.OperatorId);
+
+                    if (contestPool == null)
+                    {
+                        continue;
+                    }
+
+                    var prizePool = await _persistService.FindMany<PrizePool>(_ => _.ContestPrizeId == contestPool.ContestPrizeId);
 
                     if (prizePool == null || !prizePool.Any())
                     {
-                        return false;
+                        continue;
                     }
 
                     var prizeQueue = new Queue();
@@ -366,36 +361,223 @@ namespace Timkoto.UsersApi.Services
 
                 var updateResult = await _persistService.ExecuteSql(sqlUpdate + ";");
 
+                if (updateResult)
+                {
+                    contest.ContestState = ContestState.Finished;
+                }
+                updateResult = await _persistService.Update(contest);
+
                 return updateResult;
             }
             catch (Exception)
             {
-                return true;
+                return false;
             }
         }
 
-        public async Task<GenericResponse> PrizePool(List<string> messages)
+        public async Task<bool> RankTeams(List<string> messages)
         {
-            var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
-            if (contest == null)
+            try
+            {
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                if (contest == null)
+                {
+                    return false;
+                }
+
+                var sqlQuery =
+                    $@"select pl.operatorId, pl.playerTeamId, sum(gp.totalPoints) totalPoints
+                    from timkotodb.playerLineup pl
+                    inner join timkotodb.gamePlayer gp
+                    on gp.contestId = pl.contestId and gp.playerId = pl.playerId
+                    where pl.contestId = '{contest.Id}'
+                    group by pl.operatorId, pl.playerTeamId;";
+
+                var teamPoints = await _persistService.SqlQuery<TeamPoints>(sqlQuery);
+
+                //group by operatorId
+                var groupedTeamPoints = teamPoints.GroupBy(_ => _.OperatorId)
+                    .Select(g => new { OperatorId = g.Key, TeamsToRank = g.ToList() }).ToList();
+
+                var teamPointsToUpdate = new List<TeamPoints>();
+
+                //process by operatorId
+                foreach (var groupedTeamPoint in groupedTeamPoints)
+                {
+                    var teamsToRank = groupedTeamPoint.TeamsToRank;
+
+                    var sortedTeamPoints = teamsToRank.OrderByDescending(_ => _.TotalPoints).ToArray();
+                    //rank
+                    sortedTeamPoints[0].TeamRank = 1;
+                    for (var i = 1; i < sortedTeamPoints.Length; i++)
+                    {
+                        sortedTeamPoints[i].TeamRank = sortedTeamPoints[i].TotalPoints == sortedTeamPoints[i - 1].TotalPoints
+                            ? sortedTeamPoints[i - 1].TeamRank
+                            : i + 1;
+                    }
+
+                    var contestPool =
+                        await _persistService.FindOne<ContestPool>(_ =>
+                            _.ContestId == contest.Id && _.OperatorId == groupedTeamPoint.OperatorId);
+
+                    if (contestPool == null)
+                    {
+                        continue;
+                    }
+
+                    var prizePool = await _persistService.FindMany<PrizePool>(_ => _.ContestPrizeId == contestPool.ContestPrizeId);
+
+                    if (prizePool == null || !prizePool.Any())
+                    {
+                        continue;
+                    }
+
+                    var prizeQueue = new Queue();
+
+                    foreach (var prize in prizePool)
+                    {
+                        for (var i = prize.FromRank; i <= prize.ToRank; i++)
+                        {
+                            prizeQueue.Enqueue(prize.Prize);
+                        }
+                    }
+
+                    //group by rank
+                    var groupedTeamRank = sortedTeamPoints.GroupBy(_ => _.TeamRank)
+                        .Select(g => new { TeamRank = g.Key, RanksToPrize = g.ToList() }).ToList();
+
+                 teamPointsToUpdate.AddRange(groupedTeamRank.SelectMany(_ => _.RanksToPrize).ToList());
+                }
+
+                var sqlUpdate = string.Join(";", teamPointsToUpdate.Select(_ => $"UPDATE `timkotodb`.`playerTeam` SET `score` = '{_.TotalPoints}', `teamRank` = '{_.TeamRank}', `prize` = '0' WHERE (`id` = '{_.PlayerTeamId}')"));
+
+                var updateResult = await _persistService.ExecuteSql(sqlUpdate + ";");
+
+                return updateResult;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<GenericResponse> PrizePool(long operatorId, List<string> messages)
+        {
+            var sqlQuery =
+                $@"SELECT pp.id, fromRank, toRank, prize FROM timkotodb.contest c 
+                inner join timkotodb.contestPool cp
+                on cp.contestId = c.id
+                inner join timkotodb.prizePool pp
+                on pp.contestPrizeId = cp.contestPrizeId
+                where c.contestState in ('Upcoming', 'Ongoing') and '{operatorId}';";
+
+            var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
+
+            if (contestPrizePool == null || !contestPrizePool.Any())
             {
                 return GenericResponse.Create(false, HttpStatusCode.OK, Results.PrizePoolNotSet);
             }
 
-            var prizePool = await _persistService.FindMany<PrizePool>(_ => _.PrizePoolId == contest.PrizePoolId);
-
-            if (prizePool == null || !prizePool.Any())
+            foreach (var prizePool in contestPrizePool)
             {
-                return GenericResponse.Create(false, HttpStatusCode.OK, Results.PrizePoolNotSet);
+                prizePool.DisplayRank = prizePool.FromRank == prizePool.ToRank
+                    ? prizePool.FromRank.ToString()
+                    : $"{prizePool.FromRank} - {prizePool.ToRank}";
             }
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.PrizePoolFound);
             genericResponse.Data = new
             {
-                PrizePool = prizePool.OrderBy(_ => _.FromRank)
+                PrizePool = contestPrizePool.OrderBy(_ => _.FromRank)
             };
             
             return genericResponse;
+        }
+
+        public async Task<GenericResponse> TeamRanks(long operatorId, List<string> messages)
+        {
+            var sqlQuery =
+                $@"select userName, teamName, score, teamRank, prize from timkotodb.contest c
+                        inner join timkotodb.playerTeam pt
+                        on pt.contestId = c.id
+                        inner join timkotodb.user u
+                        on u.id = pt.userId
+                        where c.contestState = 'Ongoing' and pt.operatorId = '{operatorId}' and teamRank > '0';";
+
+            var teamRankPrizes = await _persistService.SqlQuery<TeamRankPrize>(sqlQuery);
+
+            if (teamRankPrizes == null || !teamRankPrizes.Any())
+            {
+                return GenericResponse.Create(false, HttpStatusCode.OK, Results.ContestTeamFound);
+            }
+            
+            var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.NoContestTeamFound);
+            genericResponse.Data = new
+            {
+                TeamRankPrizes = teamRankPrizes.OrderBy(_ => _.TeamRank)
+            };
+
+            return genericResponse;
+        }
+
+        public async Task<bool> BroadcastRanks(List<string> messages)
+        {
+            try
+            {
+                var sqlQuery =
+                    $@"select pt.operatorId, userId, userName, teamName, score, teamRank, prize from timkotodb.contest c
+                        inner join timkotodb.playerTeam pt
+                        on pt.contestId = c.id
+                        inner join timkotodb.user u
+                        on u.id = pt.userId
+                        where c.contestState = 'Ongoing' and teamRank > 0;";
+
+                var teamRankPrizes = await _persistService.SqlQuery<TeamRankPrize>(sqlQuery);
+
+                if (teamRankPrizes == null || !teamRankPrizes.Any())
+                {
+                    return false;
+                }
+
+                var groupedTeamRankPrizes = teamRankPrizes.GroupBy(_ => 0)
+                    .Select(g => new { OperatorId = g.Key, OperatorTeams = g.ToList() }).ToList();
+
+                foreach (var groupedTeamRankPrize in groupedTeamRankPrizes)
+                {
+                    if (groupedTeamRankPrize.OperatorTeams == null || !groupedTeamRankPrize.OperatorTeams.Any())
+                    {
+                        continue;
+                    }
+
+                    var cws = new ClientWebSocket();
+
+                    var cancelSource = new CancellationTokenSource();
+                    var connectionUri = new Uri($"wss://4a4vv008xj.execute-api.ap-southeast-1.amazonaws.com/Dev?operatorId={groupedTeamRankPrize.OperatorId}");
+                    //var connectionUri = new Uri($"wss://4a4vv008xj.execute-api.ap-southeast-1.amazonaws.com/Dev");
+                    await cws.ConnectAsync(connectionUri, cancelSource.Token);
+
+                    var dataToSend = new WsData
+                    {
+                        message = "sendmessage",
+                        data = JsonConvert.SerializeObject(groupedTeamRankPrize.OperatorTeams)
+                    };
+
+                    //var message = new ArraySegment<byte>(
+                    //    Encoding.UTF8.GetBytes(
+                    //        "{\"message\":\"sendmessage\", \"data\":\"Hello from .NET ClientWebSocket\"}"));
+
+                    var message = new ArraySegment<byte>(
+                        Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(dataToSend)));
+
+                    await cws.SendAsync(message, WebSocketMessageType.Text, true, cancelSource.Token);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
         }
     }
 }

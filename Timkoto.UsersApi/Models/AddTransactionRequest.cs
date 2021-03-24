@@ -6,6 +6,8 @@ namespace Timkoto.UsersApi.Models
     {
         public virtual long OperatorId { get; set; }
 
+        public virtual long AgentId { get; set; }
+
         public virtual long UserId { get; set; }
 
         public virtual UserType UserType { get; set; }
