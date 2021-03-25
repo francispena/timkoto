@@ -25,23 +25,25 @@ namespace Timkoto.UsersApi.Services
 
         public async Task<GenericResponse> AddUser(AddUserRequest request, List<string> messages)
         {
-            var genericResponse = new GenericResponse();
-            
             var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
             if (registrationCode == null)
             {
-                genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
-
-                return genericResponse;
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
             }
             if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
             {
-                genericResponse =
-                    GenericResponse.Create(false,  HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
-
-                return genericResponse;
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
             }
+
+            var existingUser = _persistService.FindOne<User>(_ =>
+                _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
+            
+            if (existingUser != null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserNameExists);
+            }
+
+            var genericResponse = new GenericResponse();
 
             var user = new User
             {
@@ -59,7 +61,7 @@ namespace Timkoto.UsersApi.Services
 
             if (result > 0)
             {
-                var createResult  = await _cognitoUserStore.CreateAsync(request.Email, request.Password, messages);
+                var createResult = await _cognitoUserStore.CreateAsync(request.Email, request.Password, messages);
                 if (createResult == Results.AccountConfirmedInCognito)
                 {
                     registrationCode.IsActive = false;

@@ -375,33 +375,42 @@ namespace Timkoto.UsersApi.Controllers
             return Ok(result);
         }
 
-        [Route("RankAndSetPrizes")]
+        [Route("SetPrizes")]
         [HttpPost]
-        public async Task<IActionResult> RankAndSetPrizes()
+        public async Task<IActionResult> SetPrizes()
         {
-            var result = await _contestService.RankAndSetPrizes(new List<string>());
+            var result = await _contestService.SetPrizes(new List<string>());
+
+            return Ok(result);
+        }
+
+        [Route("SetPrizesInTransaction")]
+        [HttpPost]
+        public async Task<IActionResult> SetPrizesInTransaction()
+        {
+            var result = await _contestService.SetPrizesInTransaction(new List<string>());
 
             return Ok(result);
         }
 
 
-        [Route("BroadcastRanks")]
-        [HttpPost]
-        public async Task<IActionResult> BroadcastRanks()
-        {
-            await _contestService.BroadcastRanks(new List<string>());
+        //[Route("BroadcastRanks")]
+        //[HttpPost]
+        //public async Task<IActionResult> BroadcastRanks()
+        //{
+        //    await _contestService.BroadcastRanks(new List<string>());
 
-            return Ok();
-        }
+        //    return Ok();
+        //}
 
         [Route("TestService")]
         [HttpGet]
         public async Task<IActionResult> TestService()
         {
-            var emailService = new EmailService();
-            var result  = await emailService.SendRegistrationLink("francisgail.pena@yahoo.com", "https://timkoto.com/register/5623867386723675396", new List<string>());
+            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+            //var result = true;
 
-            return Ok(result);
+            return Ok(httpOnlyAccessToken);
         }
     }
 }

@@ -44,6 +44,10 @@ namespace Timkoto.Data.Repositories
             Index = "balance_ix", NotNull = true)]
         public virtual decimal Balance { get; set; }
 
+        [Property(Name = "Tag", Column = "tag", TypeType = typeof(string),
+            Index = "tag_ix", Length = 250)]
+        public virtual string Tag { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime),
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

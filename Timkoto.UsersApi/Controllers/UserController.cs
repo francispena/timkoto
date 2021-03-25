@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Timkoto.UsersApi.Authorization.Interfaces;
+using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -20,13 +21,20 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly ICognitoUserStore _cognitoUserStore;
 
+        private readonly IRegistrationCodeService _registrationCodeService;
+
+        private readonly IEmailService _emailService;
+
         private readonly ILambdaContext _lambdaContext;
 
-        public UserController(IUserService userService, ICognitoUserStore cognitoUserStore)
+        public UserController(IUserService userService, ICognitoUserStore cognitoUserStore,
+            IRegistrationCodeService registrationCodeService, IEmailService emailService)
         {
             _userService = userService;
             _cognitoUserStore = cognitoUserStore;
             _lambdaContext = Startup.LambdaContext;
+            _registrationCodeService = registrationCodeService;
+            _emailService = emailService;
         }
 
         [HttpPost]
@@ -71,7 +79,7 @@ namespace Timkoto.UsersApi.Controllers
                     Response.Cookies.Append("HttpOnlyAccessToken", authenticationResult.Tag, new CookieOptions
                     {
                         Path = "/",
-                        HttpOnly = false,
+                        HttpOnly = true,
                         IsEssential = true,
                         Expires = DateTime.Now.AddMonths(1),
                         Secure = true
@@ -106,7 +114,7 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                var changePasswordResult = await _cognitoUserStore.ChangePasswordAsync(request.Email, request.Password, messages);
+                var changePasswordResult = await _cognitoUserStore.ChangePasswordAsync(request, messages);
 
                 if (changePasswordResult.IsSuccess)
                 {
@@ -125,6 +133,48 @@ namespace Timkoto.UsersApi.Controllers
             finally
             {
                 _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+            }
+        }
+
+        [Route("sendPasswordResetEmail")]
+        [HttpPost]
+        public async Task<IActionResult> SendPasswordResetEmail([FromBody] PasswordResetRequest request)
+        {
+            var messages = new List<string>();
+            GenericResponse retVal;
+
+            try
+            {
+                var user = await _registrationCodeService.GenerateResetPasswordCode(request.EmailAddress, messages);
+                if (user != null)
+                {
+                    var result = await _emailService.SendPasswordResetCode(user, messages);
+                    if (result)
+                    {
+                        retVal = GenericResponse.Create(true, HttpStatusCode.OK, Results.EmailSent);
+                        return Ok(retVal);
+                    }
+                    else
+                    {
+                        retVal = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.EmailSendingFailed);
+                        return StatusCode(403, retVal);
+                    }
+                }
+                else
+                {
+                    retVal = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidUserId);
+                    return StatusCode(403, retVal);
+                }
+            }
+            catch (Exception ex)
+            {
+                retVal = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, retVal);
+            }
+            finally
+            {
+                //TODO: logging
             }
         }
     }

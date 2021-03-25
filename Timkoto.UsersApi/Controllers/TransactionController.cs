@@ -75,5 +75,29 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
+        [Route("history/{userId}")]
+        [HttpGet]
+        public async Task<IActionResult> History([FromRoute] long userId)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _transactionService.History(userId, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

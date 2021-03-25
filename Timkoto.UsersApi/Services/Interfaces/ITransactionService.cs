@@ -9,5 +9,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<GenericResponse> AddTransaction(AddTransactionRequest request, bool limit, List<string> messages);
 
         Task<GenericResponse> Balance(long userId, List<string> messages);
+        
+        Task<GenericResponse> History(long userId, List<string> messages);
     }
 }

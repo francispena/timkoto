@@ -12,6 +12,7 @@ using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
+using ChangePasswordRequest = Timkoto.UsersApi.Models.ChangePasswordRequest;
 
 namespace Timkoto.UsersApi.Authorization
 {
@@ -124,9 +125,9 @@ namespace Timkoto.UsersApi.Authorization
                     {
                         genericResponse =
                             GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
-                        
+
                         genericResponse.Tag = authResponse.AuthenticationResult?.AccessToken;
-                        
+
                         genericResponse.Data = new
                         {
                             authResponse.AuthenticationResult?.IdToken,
@@ -156,21 +157,37 @@ namespace Timkoto.UsersApi.Authorization
             return genericResponse;
         }
 
-        public async Task<GenericResponse> ChangePasswordAsync(string userName, string password, List<string> messages)
+        public async Task<GenericResponse> ChangePasswordAsync(ChangePasswordRequest request, List<string> messages)
         {
-            var setPasswordResult = await _providerClient.AdminSetUserPasswordAsync(new AdminSetUserPasswordRequest
+            var user = await _persistService.FindOne<User>(_ => _.IsActive && _.Email == request.Email && _.PasswordResetCode == request.Code);
+            if (user == null)
             {
-                UserPoolId = _userPoolId,
-                Username = userName,
-                Password = password,
-                Permanent = true
-            });
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidResetCode);
+            }
 
-            var genericResponse = setPasswordResult.HttpStatusCode == HttpStatusCode.OK
-                ? GenericResponse.Create(true, HttpStatusCode.OK, Results.ChangePasswordSucceeded)
-                : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+            if (DateTime.UtcNow.Subtract(user.UpdateDateTime).TotalMinutes > 600)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidResetCode);
+            }
 
-            return genericResponse;
+            try
+            {
+                var setPasswordResult = await _providerClient.AdminSetUserPasswordAsync(new AdminSetUserPasswordRequest
+                {
+                    UserPoolId = _userPoolId,
+                    Username = request.Email,
+                    Password = request.Password,
+                    Permanent = true
+                });
+
+                return setPasswordResult.HttpStatusCode == HttpStatusCode.OK
+                    ? GenericResponse.Create(true, HttpStatusCode.OK, Results.ChangePasswordSucceeded)
+                    : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+            }
+            catch 
+            {
+                return GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+            }
         }
     }
 }

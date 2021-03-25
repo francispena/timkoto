@@ -144,14 +144,20 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task<GenericResponse> GetAllTeams(long userId, List<string> messages)
+        public async Task<GenericResponse> GetTeamsHistory(long userId, List<string> messages)
         {
             var genericResponse = new GenericResponse();
 
-            var playerTeams =
-                await _persistService.FindMany<PlayerTeam>(_ => _.UserId == userId);
+            var sqlQuery =
+                $@"SELECT pt.Id, pt.contestId, c.gameDate, pt.teamName, pt.score, pt.teamRank, pt.prize 
+                    FROM timkotodb.playerTeam pt
+                    inner join contest c
+                    on c.Id = pt.contestId
+                    where userId = '{userId}';";
 
-            if (playerTeams == null || !playerTeams.Any())
+            var playerTeamHistory = await _persistService.SqlQuery<PlayerTeamHistory>(sqlQuery);
+
+            if (playerTeamHistory == null || !playerTeamHistory.Any())
             {
                 genericResponse =
                     GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoTeamFound);
@@ -159,7 +165,7 @@ namespace Timkoto.UsersApi.Services
                 return genericResponse;
             }
 
-            if (!playerTeams.Any())
+            if (!playerTeamHistory.Any())
             {
                 return genericResponse;
             }
@@ -167,7 +173,7 @@ namespace Timkoto.UsersApi.Services
             genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.TeamsFound);
 
-            genericResponse.Data = new { PlayerTeams = playerTeams.OrderBy(_ => _.TeamName).ToList() };
+            genericResponse.Data = new { PlayerTeams = playerTeamHistory.OrderByDescending(_ => _.GameDate).ToList() };
 
             return genericResponse;
         }

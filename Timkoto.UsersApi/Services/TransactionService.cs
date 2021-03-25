@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using NHibernate.Util;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
@@ -20,7 +21,7 @@ namespace Timkoto.UsersApi.Services
             _persistService = persistService;
         }
 
-        public async Task<GenericResponse> AddTransaction(AddTransactionRequest request, bool limitAmount,  List<string> messages)
+        public async Task<GenericResponse> AddTransaction(AddTransactionRequest request, bool limitAmount, List<string> messages)
         {
             var lastTransaction = await
                 _persistService.FindLast<Transaction>(_ => _.UserId == request.UserId, _ => _.CreateDateTime);
@@ -51,7 +52,7 @@ namespace Timkoto.UsersApi.Services
             };
 
             var user = await _persistService.FindOne<User>(_ => _.Id == request.UserId);
-            
+
             user.Points = newTransaction.Balance;
 
             var dbSession = _persistService.GetSession();
@@ -68,7 +69,7 @@ namespace Timkoto.UsersApi.Services
             {
                 await tx.RollbackAsync();
             }
-            
+
             return result > 0
                  ? GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionAdded)
                  : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AddTransactionFailed);
@@ -78,8 +79,8 @@ namespace Timkoto.UsersApi.Services
         {
             var lastTransaction = await
                 _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.CreateDateTime);
-            
-            var genericResponse  = GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionFound); 
+
+            var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionFound);
             if (lastTransaction != null)
             {
                 genericResponse.Data = new
@@ -94,8 +95,27 @@ namespace Timkoto.UsersApi.Services
                     Balance = 0m
                 };
             }
-            
+
             return genericResponse;
+        }
+
+        public async Task<GenericResponse> History(long userId, List<string> messages)
+        {
+            var transactions = await _persistService.FindMany<Transaction>(_ => _.UserId == userId);
+
+
+            if (transactions != null)
+            {
+                var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionFound);
+                genericResponse.Data = new
+                {
+                    Transactions = transactions
+                };
+
+                return genericResponse;
+            }
+
+            return GenericResponse.Create(true, HttpStatusCode.OK, Results.NoTransactionFound);
         }
     }
 }

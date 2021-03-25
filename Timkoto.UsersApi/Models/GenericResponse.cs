@@ -143,6 +143,12 @@ namespace Timkoto.UsersApi.Models
                     return "Sending of email failed.";
                 case Results.PlayerNotFound:
                     return "Player record not found.";
+                case Results.InvalidResetCode:
+                    return "Invalid password reset code.";
+                case Results.UserNameExists:
+                    return "User name exists, please give another user name.";
+                case Results.NoTransactionFound:
+                    return "No transactions found.";
             }
 
             return "";

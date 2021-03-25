@@ -12,6 +12,6 @@ namespace Timkoto.UsersApi.Authorization.Interfaces
 
         Task<GenericResponse> AuthenticateAsync(string email, string password, List<string> messages);
 
-        Task<GenericResponse> ChangePasswordAsync(string email, string password, List<string> messages);
+        Task<GenericResponse> ChangePasswordAsync(ChangePasswordRequest request, List<string> messages);
     }
 }

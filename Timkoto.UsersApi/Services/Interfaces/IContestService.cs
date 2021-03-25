@@ -12,7 +12,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
 
         Task<GenericResponse> SubmitLineUp(LineUpRequest request, List<string> messages);
 
-        Task<bool> RankAndSetPrizes(List<string> messages);
+        Task<bool> SetPrizes(List<string> messages);
 
         Task<GenericResponse> PrizePool(long operatorId, List<string> messages);
 
@@ -21,5 +21,11 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<bool> BroadcastRanks(List<string> messages);
 
         Task<GenericResponse> TeamRanks(long operatorId, List<string> messages);
+
+        Task<GenericResponse> TeamHistoryRanks(long operatorId, string gameDate, List<string> messages);
+
+        Task ComputePrizePool(long operatorId, List<ContestPrizePool> contestPrizePool);
+
+        Task<string> SetPrizesInTransaction(List<string> messages);
     }
 }

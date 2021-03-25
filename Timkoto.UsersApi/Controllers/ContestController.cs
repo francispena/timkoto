@@ -143,5 +143,30 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
+        [Route("TeamHistoryRanks/{operatorId}/{gameDate}")]
+        [HttpGet]
+        public async Task<IActionResult> TeamHistoryRanks([FromRoute] long operatorId, string gameDate)
+        {
+            var messages = new List<string>();
+            GenericResponse result;
+
+            try
+            {
+                result = await _contestService.TeamHistoryRanks(operatorId, gameDate , messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

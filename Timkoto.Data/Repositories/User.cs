@@ -47,6 +47,10 @@ namespace Timkoto.Data.Repositories
             Index = "points_ix")]
         public virtual decimal Points { get; set; }
 
+        [Property(Name = "PasswordResetCode", Column = "passwordResetCode", TypeType = typeof(string), Length = 10,
+            Index = "passwordResetCode_ix")]
+        public virtual string PasswordResetCode { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

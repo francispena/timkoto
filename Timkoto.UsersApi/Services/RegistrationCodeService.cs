@@ -74,5 +74,22 @@ namespace Timkoto.UsersApi.Services
 
             return genericResponse;
         }
+
+        public async Task<User> GenerateResetPasswordCode(string requestEmailAddress, List<string> messages)
+        {
+            var user = await _persistService.FindOne<User>(_ => _.IsActive && _.Email == requestEmailAddress);
+            if (user == null)
+            {
+                return null;
+            }
+            var random = new Random(100);
+            var code = random.Next(100000, 999999).ToString();
+
+            user.PasswordResetCode = code;
+            user.UpdateDateTime = DateTime.UtcNow;
+
+            var updateResult = await _persistService.Update(user);
+            return updateResult ? user : null;
+        }
     }
 }

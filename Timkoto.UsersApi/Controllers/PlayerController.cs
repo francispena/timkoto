@@ -95,7 +95,7 @@ namespace Timkoto.UsersApi.Controllers
         }
 
 
-        [Route("AllTeams/{userId}/{contestId}")]
+        [Route("TeamHistory/{userId}")]
         [HttpGet]
         public async Task<IActionResult> AllTeams([FromRoute] long userId)
         {
@@ -104,7 +104,7 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                result = await _playerService.GetAllTeams(userId, messages);
+                result = await _playerService.GetTeamsHistory(userId, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }

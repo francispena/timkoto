@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Amazon.Lambda.Core;
+using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Http;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
@@ -90,11 +91,12 @@ namespace Timkoto.UsersApi
                 });
             });
 
-            services.Configure<CookiePolicyOptions>(options =>
-            {
-                options.CheckConsentNeeded = context => true;
-                options.MinimumSameSitePolicy = SameSiteMode.None;
-            });
+            //services.Configure<CookiePolicyOptions>(options =>
+            //{
+            //    options.CheckConsentNeeded = context => false;
+            //    options.MinimumSameSitePolicy = SameSiteMode.None;
+            //    options.Secure =CookieSecurePolicy.Always;
+            //});
 
             services.AddNHibernate(connectionString);
 
@@ -109,7 +111,7 @@ namespace Timkoto.UsersApi
             services.AddTransient<IOperatorService, OperatorService>();
             services.AddTransient<IContestService, ContestService>();
             services.AddTransient<IRapidNbaStatistics, RapidNbaStatistics>();
-            
+            services.AddTransient<IEmailService, EmailService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
@@ -138,6 +140,10 @@ namespace Timkoto.UsersApi
             app.UseHttpsRedirection();
             
             app.UseRouting();
+            //app.UseCookiePolicy(new CookiePolicyOptions
+            //{
+            //    HttpOnly = HttpOnlyPolicy.None,
+            //});
 
             app.UseAuthorization();
             app.UseAuthentication();

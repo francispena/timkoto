@@ -52,6 +52,9 @@
         PrizePoolFound,
         EmailSent,
         EmailSendingFailed,
-        PlayerNotFound
+        PlayerNotFound,
+        InvalidResetCode,
+        UserNameExists,
+        NoTransactionFound
     }
 }

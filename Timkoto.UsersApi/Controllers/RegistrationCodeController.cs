@@ -47,9 +47,9 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        [Route("sendEmail")]
+        [Route("sendRegistrationLinkEmail")]
         [HttpPost]
-        public async Task<IActionResult> SendEmail([FromBody] EmailRegLinkRequest request)
+        public async Task<IActionResult> SendRegistrationLinkEmail([FromBody] EmailRegLinkRequest request)
         {
             var messages = new List<string>();
             GenericResponse retVal;
