@@ -76,16 +76,15 @@ namespace Timkoto.UsersApi.Services
                         turnovers *= -1;
                         var totalPoints = points + totReb + assists + steals + blocks + turnovers;
 
-                        updates.Add($@"UPDATE `timkotodb`.`gamePlayer` SET `points` = {points}, 
-                                                                                    `rebounds` = {totReb}, `assists` = {assists}, 
-                                                                                    `steals` = {steals}, `blocks` = {blocks}, 
-                                                                                    `turnOvers` = {turnovers}, 
-                                                                                    `totalPoints` = {totalPoints} 
-                                                                                    WHERE(`gameId` = '{gameId}' and playerId = '{apiStatistic.playerId}')");
+                        updates.Add($@"UPDATE `timkotodb`.`gamePlayer` SET `points` = {points}, `rebounds` = {totReb}, `assists` = {assists}, `steals` = {steals}, `blocks` = {blocks}, `turnOvers` = {turnovers}, `totalPoints` = {totalPoints} WHERE(`gameId` = '{gameId}' and playerId = '{apiStatistic.playerId}')");
                     }
 
                     var sqlUpdate = string.Join(";", updates);
-                    await _persistService.ExecuteSql($"{sqlUpdate};");
+                    var retVal = await _persistService.ExecuteSql($"{sqlUpdate};");
+                    if (!retVal)
+                    {
+
+                    }
                 }
 
                 return true;

@@ -195,7 +195,7 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var gameDates = new[]
                 {
-                    DateTime.UtcNow.Subtract(new TimeSpan(1, 0, 0, 0, 0)).ToString("yyyy-MM-dd"),
+                    DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd"),
                     DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd")
                 };
