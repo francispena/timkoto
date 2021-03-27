@@ -41,7 +41,8 @@ namespace Timkoto.UsersApi.Services
                 }
 
                 var gameIds = responseLive.api.games.Select(_ => _.gameId).ToList();
-               
+                var updateResult = false;
+
                 foreach (var gameId in gameIds)
                 {
                     var response = await _httpService.GetAsync<GamePlayerStatiscs>(
@@ -84,20 +85,15 @@ namespace Timkoto.UsersApi.Services
                     }
 
                     var sqlUpdate = string.Join(";", updates);
-                    var updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
-                    
-                    return updateResult;
+                    await _persistService.ExecuteSql($"{sqlUpdate};");
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
-            finally
-            {
-            }
-
-            return false;
         }
 
         public async Task<bool> GetFinalStats(List<string> messages)
@@ -164,12 +160,8 @@ namespace Timkoto.UsersApi.Services
             {
                 return false;
             }
-            finally
-            {
-            }
 
             return false;
         }
-
     }
 }

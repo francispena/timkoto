@@ -4,13 +4,16 @@ using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.WebSockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services;
@@ -18,7 +21,7 @@ using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
 {
-    [Route("api/utility/v1/[controller]")]
+    [Route("api/utility/v1/")]
     [ApiController]
     public class UtilityController : ControllerBase
     {
@@ -108,7 +111,7 @@ namespace Timkoto.UsersApi.Controllers
 
                 foreach (var teamId in teamIds)
                 {
-                    
+
                     Console.WriteLine(teamId);
 
                     var response = await _httpService.GetAsync<RapidApiPlayers>(
@@ -185,9 +188,9 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> CreateContest()
         {
             var messages = new List<string>();
-            
+
             ITransaction tx = null;
-            
+
             try
             {
                 var gameDates = new[]
@@ -197,16 +200,33 @@ namespace Timkoto.UsersApi.Controllers
                     DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd")
                 };
 
-                var easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                TimeZoneInfo easternZone = null;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                }
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+                }
+
+                if (easternZone == null)
+                {
+                    var genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TimeZoneLookUpError);
+                    return StatusCode(403, genericResponse);
+                }
+
+                //var easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
                 var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
 
                 var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
 
-                var contestToCheck = _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
+                var contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
 
                 if (contestToCheck != null)
                 {
-                    return StatusCode(403, "Contest for the exists.");
+                    return StatusCode(403, $"Contest for the day {dayOfGamesToGet} exists.");
                 }
 
                 var games = new List<RapidApiGamesGame>();
@@ -220,8 +240,7 @@ namespace Timkoto.UsersApi.Controllers
                             {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
                             {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
                         });
-                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC) == dayOfGamesToGet));
-                    
+                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC, easternZone) == dayOfGamesToGet));
                 }
 
                 if (!games.Any())
@@ -244,7 +263,7 @@ namespace Timkoto.UsersApi.Controllers
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.SaveAsync(contest);
-                
+
                 var dbGames = new List<Game>();
                 foreach (var game in games)
                 {
@@ -276,32 +295,32 @@ namespace Timkoto.UsersApi.Controllers
 
                 //get home players
                 var gamePlayers = hPlayers.Select(hPlayer => new GamePlayer
-                    {
-                        ContestId = contest.Id,
-                        GameId = dbGames.First(_ => _.HTeamId == hPlayer.TeamId && _.ContestId == contest.Id).Id,
-                        TeamId = hPlayer.TeamId,
-                        PlayerId = hPlayer.Id,
-                        TeamLocation = LocationType.Home
-                    })
+                {
+                    ContestId = contest.Id,
+                    GameId = dbGames.First(_ => _.HTeamId == hPlayer.TeamId && _.ContestId == contest.Id).Id,
+                    TeamId = hPlayer.TeamId,
+                    PlayerId = hPlayer.Id,
+                    TeamLocation = LocationType.Home
+                })
                     .ToList();
 
                 //get visitor players
                 gamePlayers.AddRange(
                     vPlayers.Select(vPlayer => new GamePlayer
-                        {
-                            ContestId = contest.Id,
-                            GameId = dbGames.First(_ => _.VTeamId == vPlayer.TeamId && _.ContestId == contest.Id).Id, 
-                            TeamId = vPlayer.TeamId,
-                            PlayerId = vPlayer.Id,
-                            TeamLocation = LocationType.Visitor
-                        })
+                    {
+                        ContestId = contest.Id,
+                        GameId = dbGames.First(_ => _.VTeamId == vPlayer.TeamId && _.ContestId == contest.Id).Id,
+                        TeamId = vPlayer.TeamId,
+                        PlayerId = vPlayer.Id,
+                        TeamLocation = LocationType.Visitor
+                    })
                         .ToList()
                 );
 
                 sqlInsert =
                     "INSERT INTO `gamePlayer` (`contestId`,`GameId`,`teamId`,`teamLocation`,`playerId`) VALUES ";
                 sqlValues =
-                    string.Join(",",gamePlayers.Select(_ => $"({_.ContestId},'{_.GameId}','{_.TeamId}','{_.TeamLocation}','{_.PlayerId}')"));
+                    string.Join(",", gamePlayers.Select(_ => $"({_.ContestId},'{_.GameId}','{_.TeamId}','{_.TeamLocation}','{_.PlayerId}')"));
 
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
 
@@ -318,7 +337,7 @@ namespace Timkoto.UsersApi.Controllers
                 }
 
                 await tx.CommitAsync();
-                
+
                 return Ok(true);
             }
             catch (Exception ex)
@@ -338,11 +357,10 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        private string ToStringDayDate(DateTime dateNoTimeZone)
+        private string ToStringDayDate(DateTime dateNoTimeZone, TimeZoneInfo easternZone)
         {
             var utcDate = TimeZoneInfo.ConvertTimeToUtc(dateNoTimeZone);
 
-            var easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
 
             return today.ToString("yyyy-MM-dd");
@@ -367,7 +385,7 @@ namespace Timkoto.UsersApi.Controllers
         }
 
         [Route("RankTeams")]
-        [HttpPost]
+        [HttpGet]
         public async Task<IActionResult> RankTeams()
         {
             var result = await _contestService.RankTeams(new List<string>());
@@ -376,7 +394,7 @@ namespace Timkoto.UsersApi.Controllers
         }
 
         [Route("SetPrizes")]
-        [HttpPost]
+        [HttpGet]
         public async Task<IActionResult> SetPrizes()
         {
             var result = await _contestService.SetPrizes(new List<string>());
@@ -385,7 +403,7 @@ namespace Timkoto.UsersApi.Controllers
         }
 
         [Route("SetPrizesInTransaction")]
-        [HttpPost]
+        [HttpGet]
         public async Task<IActionResult> SetPrizesInTransaction()
         {
             var result = await _contestService.SetPrizesInTransaction(new List<string>());
@@ -403,14 +421,14 @@ namespace Timkoto.UsersApi.Controllers
         //    return Ok();
         //}
 
-        [Route("TestService")]
-        [HttpGet]
-        public async Task<IActionResult> TestService()
-        {
-            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
-            //var result = true;
+        //[Route("TestService")]
+        //[HttpGet]
+        //public async Task<IActionResult> TestService()
+        //{
+        //    var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+        //    //var result = true;
 
-            return Ok(httpOnlyAccessToken);
-        }
+        //    return Ok(httpOnlyAccessToken);
+        //}
     }
 }

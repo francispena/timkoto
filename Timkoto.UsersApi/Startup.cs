@@ -1,3 +1,4 @@
+using Amazon.Lambda.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -11,9 +12,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Amazon.Lambda.Core;
-using Microsoft.AspNetCore.CookiePolicy;
-using Microsoft.AspNetCore.Http;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization;
@@ -32,9 +30,12 @@ namespace Timkoto.UsersApi
 
         public static IConfiguration Configuration { get; private set; }
 
+        private readonly bool _isProd;
+
         public Startup(IConfiguration configuration)
         {
             var environment = Environment.GetEnvironmentVariable("Environment") ?? "Development";
+            _isProd = environment == "Production";
 
             Configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
@@ -62,6 +63,7 @@ namespace Timkoto.UsersApi
 
             services.AddControllersWithViews().AddNewtonsoftJson();
 
+            //hide in prod
             services.AddSwaggerGen(_ =>
             {
                 _.SwaggerDoc("v1", new OpenApiInfo {Title = "TimKoTo API", Version = "v1"});
@@ -91,13 +93,6 @@ namespace Timkoto.UsersApi
                 });
             });
 
-            //services.Configure<CookiePolicyOptions>(options =>
-            //{
-            //    options.CheckConsentNeeded = context => false;
-            //    options.MinimumSameSitePolicy = SameSiteMode.None;
-            //    options.Secure =CookieSecurePolicy.Always;
-            //});
-
             services.AddNHibernate(connectionString);
 
             services.AddTransient<IPersistService, PersistService>();
@@ -122,6 +117,7 @@ namespace Timkoto.UsersApi
                 app.UseDeveloperExceptionPage();
             }
 
+            //hide in prod
             app.UseSwagger(c =>
             {
                 c.RouteTemplate = "swagger/{documentName}/swagger.json";
@@ -130,24 +126,20 @@ namespace Timkoto.UsersApi
             app.UseSwaggerUI(_ =>
             {
                 var swaggerJsonBasePath = string.IsNullOrWhiteSpace(_.RoutePrefix) ? "." : "..";
-                _.SwaggerEndpoint(url: $"{swaggerJsonBasePath}/swagger/v1/swagger.json", name: "TimKoTo API V1");
+                _.SwaggerEndpoint($"{swaggerJsonBasePath}/swagger/v1/swagger.json", "TimKoTo API V1");
             });
 
-            app.UseCors(_ => _.WithOrigins("*")
+            var origins = _isProd ? "*" : "*";
+
+            app.UseCors(_ => _.WithOrigins(origins)
                 .AllowAnyMethod()
                 .AllowAnyHeader());
 
             app.UseHttpsRedirection();
             
             app.UseRouting();
-            //app.UseCookiePolicy(new CookiePolicyOptions
-            //{
-            //    HttpOnly = HttpOnlyPolicy.None,
-            //});
-
             app.UseAuthorization();
             app.UseAuthentication();
-
      
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         }

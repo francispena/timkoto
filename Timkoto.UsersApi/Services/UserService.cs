@@ -35,7 +35,7 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
             }
 
-            var existingUser = _persistService.FindOne<User>(_ =>
+            var existingUser = await _persistService.FindOne<User>(_ =>
                 _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
             
             if (existingUser != null)
@@ -44,11 +44,14 @@ namespace Timkoto.UsersApi.Services
             }
 
             var genericResponse = new GenericResponse();
+            var phoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber)
+                ? request.PhoneNumber.Replace("(", "").Replace(")", "").Replace("-", "")
+                : null;
 
             var user = new User
             {
                 Email = request.Email,
-                PhoneNumber = request.PhoneNumber,
+                PhoneNumber = phoneNumber,
                 UserName = request.UserName,
                 IsActive = true,
                 OperatorId = registrationCode.OperatorId,

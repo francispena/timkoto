@@ -16,6 +16,7 @@ using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
+using Ubiety.Dns.Core.Records;
 
 namespace Timkoto.UsersApi.Services
 {
@@ -260,14 +261,16 @@ namespace Timkoto.UsersApi.Services
             return default;
         }
 
-        public async Task<bool> SetPrizes(List<string> messages)
+        public async Task<string> SetPrizes(List<string> messages)
         {
+            ITransaction tx = null;
+            var result = "";
             try
             {
                 var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
-                    return false;
+                    return "No Ongoing contest";
                 }
 
                 var sqlQuery =
@@ -280,6 +283,7 @@ namespace Timkoto.UsersApi.Services
                     .Select(g => new { OperatorId = g.Key, TeamsToSetPrize = g.ToList() }).ToList();
 
                 var teamPointsToUpdate = new List<TeamPoints>();
+                var actualPrizePools = new List<ActualPrizePool>();
 
                 //process by operatorId
                 foreach (var groupedTeamPoint in groupedTeamsByOperatorId)
@@ -299,16 +303,27 @@ namespace Timkoto.UsersApi.Services
                     {
                         continue;
                     }
-
+                    
                     var prizeQueue = new Queue();
 
                     foreach (var prize in prizePool)
                     {
+                        actualPrizePools.Add(new ActualPrizePool
+                        {
+                            ContestId = contest.Id,
+                            OperatorId = groupedTeamPoint.OperatorId,
+                            FromRank = prize.FromRank,
+                            ToRank = prize.ToRank,
+                            Prize = prize.Prize
+                        });
+
                         for (var i = prize.FromRank; i <= prize.ToRank; i++)
                         {
                             prizeQueue.Enqueue(prize.Prize);
                         }
                     }
+
+                    var packageTotal = prizeQueue.ToArray().Sum(_ => (decimal)_);
 
                     //group by rank
                     var groupedTeamRank = groupedTeamPoint.TeamsToSetPrize.GroupBy(_ => _.TeamRank)
@@ -318,7 +333,7 @@ namespace Timkoto.UsersApi.Services
                     foreach (var teamRank in groupedTeamRank.OrderBy(_ => _.TeamRank).ToList())
                     {
                         var rankPrize = 0m;
-                        for (var i = 0; i < teamRank.RanksToPrize.Count; i++)
+                        foreach (var team in teamRank.RanksToPrize)
                         {
                             rankPrize += Convert.ToDecimal(prizeQueue.Dequeue());
 
@@ -330,7 +345,7 @@ namespace Timkoto.UsersApi.Services
 
                         foreach (var team in teamRank.RanksToPrize)
                         {
-                            team.Prize = rankPrize / teamRank.RanksToPrize.Count;
+                            team.Prize = decimal.Round(rankPrize / teamRank.RanksToPrize.Count, MidpointRounding.ToZero);
                         }
 
                         if (prizeQueue.Count == 0)
@@ -340,17 +355,41 @@ namespace Timkoto.UsersApi.Services
                     }
 
                     teamPointsToUpdate.AddRange(groupedTeamRank.SelectMany(_ => _.RanksToPrize).ToList());
+                    
+                    result =
+                        $"{result}{Environment.NewLine}ContesId:{contest.Id}, OperatorId:{groupedTeamPoint.OperatorId}, PackageTotal:{packageTotal} TotaPrize: {teamPointsToUpdate.Sum(_ => _.Prize)}";
                 }
 
+                //insert actualPrizePool
+                var sqlInsert =
+                    "INSERT INTO `timkotodb`.`actualPrizePool` (`contestId`, `operatorId`, `fromRank`, `toRank`, `prize`) VALUES ";
+                var sqlValues = string.Join(",", actualPrizePools.Select(_ => $"('{contest.Id}','{_.OperatorId}', '{_.FromRank}', '{_.ToRank}', '{_.Prize}')"));
+
+                //update prize to zero in playerTeam table
+                var sqlUpdateToZero = $"UPDATE `timkotodb`.`playerTeam` SET `prize` = '0' WHERE (`contestId` = '{contest.Id}');";
+
+                //update prize in playerTeam table
                 var sqlUpdate = string.Join(" ", teamPointsToUpdate.Select(_ => $"UPDATE `timkotodb`.`playerTeam` SET `prize` = '{_.Prize}' WHERE (`id` = '{_.PlayerTeamId}');"));
 
-                var updateResult = await _persistService.ExecuteSql(sqlUpdate);
+                var dbSession = _persistService.GetSession();
+                tx = dbSession.BeginTransaction();
 
-                return updateResult;
+                await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues}").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateToZero).ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdate).ExecuteUpdateAsync();
+                
+                await tx.CommitAsync();
+
+                return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return false;
+
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+                return ex.Message;
             }
         }
 
@@ -385,14 +424,16 @@ namespace Timkoto.UsersApi.Services
                     return "No Team Points";
                 }
 
+                //update balance in user table
                 var sqlUpdate = string.Join(" ", teamPoints.Select(_ => $"UPDATE `timkotodb`.`user` SET `points` = '{_.Points + _.Prize}' WHERE (`id` = '{_.UserId}');"));
                 
+                //insert into transaction
                 var sqlInsert =
                     "INSERT INTO `timkotodb`.`transaction` (`operatorId`, `agentId`, `userId`, `userType`, `transactionType`, `amount`, `balance`, `tag`) VALUES ";
                 var sqlValues =
                     string.Join(",",
                         teamPoints.Select(_ => $"('{_.OperatorId}', '{_.AgentId}', '{_.UserId}', 'Player', 'WalletDebit', '{_.Prize}', '{_.Points + _.Prize}', '{contest.GameDate} - Prize Won')"));
-
+                
                 var dbSession = _persistService.GetSession();
                 tx = dbSession.BeginTransaction();
 

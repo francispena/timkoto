@@ -55,6 +55,7 @@
         PlayerNotFound,
         InvalidResetCode,
         UserNameExists,
-        NoTransactionFound
+        NoTransactionFound,
+        TimeZoneLookUpError
     }
 }
