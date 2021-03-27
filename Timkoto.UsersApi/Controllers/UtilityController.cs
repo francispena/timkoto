@@ -274,6 +274,7 @@ namespace Timkoto.UsersApi.Controllers
                         VTeamId = game.vTeam.teamId,
                         Id = game.gameId,
                         StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
+                        Finished = false
                     });
                 }
 

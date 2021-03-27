@@ -447,7 +447,6 @@ namespace Timkoto.UsersApi.Services
             }
             catch (Exception ex)
             {
-
                 if (tx != null &&  tx.IsActive)
                 {
                     await tx.RollbackAsync();

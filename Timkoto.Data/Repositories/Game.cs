@@ -25,6 +25,10 @@ namespace Timkoto.Data.Repositories
              Index = "startTime_ix")]
         public virtual DateTime StartTime { get; set; }
 
+        [Property(Name = "Finished", Column = "finished", TypeType = typeof(bool),
+            Index = "finished_ix")]
+        public virtual bool Finished { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }
