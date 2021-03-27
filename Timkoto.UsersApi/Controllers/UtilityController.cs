@@ -161,7 +161,7 @@ namespace Timkoto.UsersApi.Controllers
                             Jersey = player.leagues.standard.jersey,
                             LastName = player.lastName,
                             Position = player.leagues.standard.pos,
-                            Season = "20-21",
+                            Season = "2020",
                             TeamId = player.teamId
                         });
                     }

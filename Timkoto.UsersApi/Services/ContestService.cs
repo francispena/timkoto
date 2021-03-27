@@ -70,7 +70,7 @@ namespace Timkoto.UsersApi.Services
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where gp.contestId = '{contestId}';";
+                        where np.season = '2020' and gp.contestId = '{contestId}';";
 
             var players = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 

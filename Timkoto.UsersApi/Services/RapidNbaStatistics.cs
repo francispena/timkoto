@@ -24,7 +24,7 @@ namespace Timkoto.UsersApi.Services
             _httpService = httpService;
         }
 
-        public async Task<bool> GetLiveStats(List<string> messages)
+        public async Task<string> GetLiveStats(List<string> messages)
         {
             try
             {
@@ -38,10 +38,16 @@ namespace Timkoto.UsersApi.Services
 
                 if (responseLive?.api?.games == null)
                 {
-                    return false;
+                    return "NoGame";
                 }
 
                 var gameIds = responseLive.api.games.Select(_ => _.gameId).ToList();
+
+                if (!gameIds.Any())
+                {
+                    return "No live results";
+                }
+
                 var updateResult = false;
 
                 foreach (var gameId in gameIds)
@@ -81,16 +87,24 @@ namespace Timkoto.UsersApi.Services
                     }
 
                     var sqlUpdate = string.Join(";", updates);
-                    var retVal = await _persistService.ExecuteSql($"{sqlUpdate};");
+                    updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
                 }
 
-                await GetStatsForFinishedGames(messages);
+                if (updateResult)
+                {
+                    var result = await GetStatsForFinishedGames(messages);
 
-                return true;
+                    return result;
+                }
+                else
+                {
+                    return "Update gamePlayer failed";
+                }
+                
             }
             catch (Exception ex)
             {
-                return false;
+                return $"GetLiveStats error - {ex.Message}";
             }
         }
 
@@ -157,7 +171,7 @@ namespace Timkoto.UsersApi.Services
             return false;
         }
 
-        private async Task GetStatsForFinishedGames(List<string> messages)
+        private async Task<string> GetStatsForFinishedGames(List<string> messages)
         {
             ITransaction tx = null;
 
@@ -166,10 +180,16 @@ namespace Timkoto.UsersApi.Services
                 var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
-                    return;
+                    return "No Contest Found";
                 }
 
                 var unFinishedGames = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false);
+
+                if (!unFinishedGames.Any())
+                {
+                    return "Games Done";
+                }
+
                 var gameIds = unFinishedGames.Select(_ => _.Id);
 
                 foreach (var gameId in gameIds)
@@ -235,14 +255,19 @@ namespace Timkoto.UsersApi.Services
                     await dbSession.CreateSQLQuery($"UPDATE `timkotodb`.`game` SET `finished` = '1' WHERE (`id` = '{gameId}');").ExecuteUpdateAsync();
 
                     await tx.CommitAsync();
+
                 }
+
+                return "success";
             }
-            catch
+            catch (Exception ex)
             {
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
+
+                return $"GetStatsForFinishedGames error - {ex.Message}";
             }
         }
     }

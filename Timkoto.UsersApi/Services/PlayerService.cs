@@ -117,14 +117,14 @@ namespace Timkoto.UsersApi.Services
             $@"SELECT concat(np.lastName, ', ', np.firstName) as playerName, nt.nickName as teamName, gp.points, gp.rebounds, 
                 gp.assists, gp.steals, gp.blocks, gp.turnOvers, gp.totalPoints FROM timkotodb.playerLineup pl
                 inner join timkotodb.gamePlayer gp
-                on gp.playerId = pl.playerId 
+                on gp.playerId = pl.playerId and gp.contestId = pl.contestId 
                 inner join timkotodb.nbaPlayer np
                 on np.id = gp.playerId
                 inner join timkotodb.nbaTeam nt
                 on nt.id = np.teamId
                 inner join timkotodb.playerTeam pt 
-                on pt.id = pl.playerTeamId 
-                where pt.id = {playerTeamId};";
+                on pt.id = pl.playerTeamId and pt.contestId = pl.contestId
+                where pt.id = '{playerTeamId}'";
 
             var teamPlayerStats = await _persistService.SqlQuery<PlayerStats>(sqlQuery);
 
