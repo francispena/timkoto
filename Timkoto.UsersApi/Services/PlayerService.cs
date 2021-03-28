@@ -83,25 +83,22 @@ namespace Timkoto.UsersApi.Services
 
         public async Task<GenericResponse> GetTeamsInContest(long userId, long contestId, List<string> messages)
         {
-            var genericResponse = new GenericResponse();
+            var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+
+            if (contest == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestFound);
+            }
 
             var playerTeams =
-                await _persistService.FindMany<PlayerTeam>(_ => _.UserId == userId && _.ContestId == contestId);
+                await _persistService.FindMany<PlayerTeam>(_ => _.UserId == userId && _.ContestId == contest.Id);
 
             if (playerTeams == null || !playerTeams.Any())
             {
-                genericResponse =
-                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoTeamFound);
-
-                return genericResponse;
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoTeamFound);
             }
 
-            if (!playerTeams.Any())
-            {
-                return genericResponse;
-            }
-
-            genericResponse =
+            var genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.TeamsFound);
 
             genericResponse.Data = new { PlayerTeams = playerTeams.OrderBy(_ => _.TeamName).ToList() };

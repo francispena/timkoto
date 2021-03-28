@@ -226,6 +226,7 @@ namespace Timkoto.UsersApi.Services
                     {
                         Amount = -contestPackage.EntryPoints,
                         OperatorId = request.LineUpTeam.OperatorId,
+                        AgentId = request.LineUpTeam.AgentId,
                         UserType = UserType.Player,
                         TransactionType = TransactionType.WalletCredit,
                         UserId = request.LineUpTeam.UserId,
@@ -309,19 +310,7 @@ namespace Timkoto.UsersApi.Services
                 //process by operatorId
                 foreach (var groupedTeamPoint in groupedTeamsByOperatorId)
                 {
-                    //var contestPool =
-                    //    await _persistService.FindOne<ContestPool>(_ =>
-                    //        _.ContestId == contest.Id && _.OperatorId == groupedTeamPoint.OperatorId);
-
-                    //if (contestPool == null)
-                    //{
-                    //    continue;
-                    //}
-
-                    //var prizePool =
-                    //    await _persistService.FindMany<PrizePool>(_ => _.ContestPrizeId == contestPool.ContestPrizeId);
-
-                    sqlQuery =
+                   sqlQuery =
                         $@"SELECT c.id as contestId, pp.id, fromRank, toRank, prize FROM timkotodb.contest c 
                             inner join timkotodb.contestPool cp
                             on cp.contestId = c.id
@@ -337,7 +326,6 @@ namespace Timkoto.UsersApi.Services
                     }
 
                     await ComputePrizePool(groupedTeamPoint.OperatorId, contestPrizePool.First().ContestId, contestPrizePool);
-
 
                     var prizeQueue = new Queue();
 
@@ -393,7 +381,7 @@ namespace Timkoto.UsersApi.Services
                     teamPointsToUpdate.AddRange(groupedTeamRank.SelectMany(_ => _.RanksToPrize).ToList());
 
                     result =
-                        $"{result}{Environment.NewLine}ContesId:{contest.Id}, OperatorId:{groupedTeamPoint.OperatorId}, PackageTotal:{packageTotal} TotaPrize: {teamPointsToUpdate.Sum(_ => _.Prize)}";
+                        $"{result}{Environment.NewLine}Contest Id:{contest.Id}, Operator Id:{groupedTeamPoint.OperatorId}, Package Total:{packageTotal}, Total Prize: {teamPointsToUpdate.Sum(_ => _.Prize)}";
                 }
 
                 //insert actualPrizePool
@@ -484,7 +472,6 @@ namespace Timkoto.UsersApi.Services
                 var sqlValues =
                     string.Join(",",
                         teamPoints.Select(_ => $"('{_.OperatorId}', '{_.AgentId}', '{_.UserId}', 'Player', 'WalletDebit', '{_.Prize}', '{_.Points + _.Prize}', '{contest.GameDate} - Prize Won')"));
-                
                 
                 tx = dbSession.BeginTransaction();
 
@@ -578,7 +565,7 @@ namespace Timkoto.UsersApi.Services
                 on cp.contestId = c.id
                 inner join timkotodb.prizePool pp
                 on pp.contestPrizeId = cp.contestPrizeId
-                where c.contestState in ('Upcoming', 'Ongoing', 'Scheduled') and '{operatorId}';";
+                where c.contestState in != 'Finished' and '{operatorId}';";
 
             var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
 

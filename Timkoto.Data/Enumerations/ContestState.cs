@@ -12,25 +12,19 @@ namespace Timkoto.Data.Enumerations
         /// <summary>
         /// The operator
         /// </summary>
-        [EnumMember(Value = "Scheduled")]
-        Scheduled = 1,
-
-        /// <summary>
-        /// The operator
-        /// </summary>
         [EnumMember(Value = "Upcoming")] 
-        Upcoming = 2,
+        Upcoming = 1,
 
         /// <summary>
         /// The agent
         /// </summary>
         [EnumMember(Value = "Ongoing")]
-        Ongoing = 3,
+        Ongoing = 2,
 
         /// <summary>
         /// The player
         /// </summary>
         [EnumMember(Value = "Finished")]
-        Finished = 4
+        Finished = 3
     }
 }

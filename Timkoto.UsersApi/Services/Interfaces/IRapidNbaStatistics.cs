@@ -7,6 +7,6 @@ namespace Timkoto.UsersApi.Services.Interfaces
     {
         Task<string> GetLiveStats(List<string> messages);
 
-        Task<bool> GetFinalStats(List<string> messages);
+        Task<string> GetFinalStats(List<string> messages);
     }
 }

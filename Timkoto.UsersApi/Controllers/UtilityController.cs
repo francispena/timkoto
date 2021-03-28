@@ -5,10 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.WebSockets;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
@@ -16,7 +13,6 @@ using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
-using Timkoto.UsersApi.Services;
 using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
@@ -100,7 +96,7 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPlayers()
         {
-            return Ok(true);
+            //return Ok(true);
             var messages = new List<string>();
             GenericResponse result;
 
@@ -125,10 +121,7 @@ namespace Timkoto.UsersApi.Controllers
                             {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
                         });
 
-                    await Task.Delay(1000);
-
-                    var teamPlayers = response?.Api?.players?.Where(_ =>
-                        _.leagues?.standard?.active == "1" && _.yearsPro != "0" && _.startNba != "0").ToList();
+                    var teamPlayers = response?.Api?.players?.Where(_ => _.leagues?.standard?.active == "1").ToList();
 
                     if (teamPlayers == null)
                     {
@@ -169,8 +162,12 @@ namespace Timkoto.UsersApi.Controllers
                         });
                     }
                 }
+                //INSERT INTO `timkotodb`.`nbaPlayer` (`teamId`, `firstName`, `lastName`, `jersey`, `position`, `season`, `salary`) VALUES ('id', 'fname', 'lname', 'jer', 'pos', '2020', '100');
 
-                var retVal = await _persistService.BatchSave(players);
+                var sqlInsert = "INSERT INTO `timkotodb`.`nbaPlayer` (`id`, `teamId`, `firstName`, `lastName`, `jersey`, `position`, `season`, `salary`) VALUES ";
+                var sqlValues = string.Join(",", players.Select(_ => $"('{_.Id}', '{_.TeamId}', '{_.FirstName.Replace("'", "''")}', '{_.LastName.Replace("'", "''")}', '{_.Jersey}', '{_.Position.Replace("'", "''")}', '2020', '0.00')"));
+
+                var retVal = await _persistService.ExecuteSql($"{sqlInsert}{sqlValues}");
 
                 return Ok(retVal);
             }
@@ -196,13 +193,6 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                var gameDates = new[]
-                {
-                    DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd"),
-                    DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd")
-                };
-
                 TimeZoneInfo easternZone = null;
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -220,17 +210,28 @@ namespace Timkoto.UsersApi.Controllers
                     return StatusCode(403, genericResponse);
                 }
 
-                //var easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
                 var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
-
                 var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
 
                 var contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
 
                 if (contestToCheck != null)
                 {
+                    dayOfGamesToGet = today.AddDays(1).ToString("yyyy-MM-dd");
+                    contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
+                }
+
+                if (contestToCheck != null)
+                {
                     return StatusCode(403, $"Contest for the day {dayOfGamesToGet} exists.");
                 }
+
+                var gameDates = new[]
+                {
+                    today.ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().AddDays(1).ToString("yyyy-MM-dd")
+                };
 
                 var games = new List<RapidApiGamesGame>();
 
@@ -255,7 +256,7 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     GameDate = dayOfGamesToGet,
                     Sport = "Basketball",
-                    ContestState = ContestState.Scheduled,
+                    ContestState = ContestState.Upcoming,
                     SalaryCap = 60000
                 };
 
@@ -265,7 +266,7 @@ namespace Timkoto.UsersApi.Controllers
                 var dbSession = _persistService.GetSession();
                 tx = dbSession.BeginTransaction();
 
-                await dbSession.SaveAsync(contest);
+                //await dbSession.SaveAsync(contest);
 
                 var dbGames = new List<Game>();
                 foreach (var game in games)
@@ -375,7 +376,7 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> GetLiveStats()
         {
             var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
-            
+
             return Ok(result);
         }
 
@@ -410,9 +411,15 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> SetPrizesInTransaction()
         {
-            var result = await _contestService.SetPrizesInTransaction(new List<string>());
+            var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
 
-            return Ok(result);
+            var createContestResult = await CreateContest();
+
+            return Ok(new
+            {
+                setPrizesInTransactionResult,
+                createContestResult
+            });
         }
 
         [Route("UpdateGameIds")]
@@ -469,11 +476,16 @@ namespace Timkoto.UsersApi.Controllers
 
                 if (!games.Any())
                 {
-                    return Ok($"No Game Found for {dayOfGamesToGet}");
+                    return StatusCode(403, $"No Game Found for {dayOfGamesToGet}");
                 }
 
-                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
-  
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState != ContestState.Finished);
+
+                if (contest == null)
+                {
+                    return StatusCode(403, "No contest Found");
+                }
+
                 var dbGames = new List<Game>();
                 foreach (var game in games)
                 {
@@ -491,8 +503,8 @@ namespace Timkoto.UsersApi.Controllers
                 var sqlUpdateGame =
                     string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
 
-                var sqlUpdateGamePlayer =  string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
-                
+                var sqlUpdateGamePlayer = string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
+
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery(sqlUpdateGame + ";").ExecuteUpdateAsync();
@@ -512,7 +524,7 @@ namespace Timkoto.UsersApi.Controllers
                     dbSession.Close();
                     dbSession.Dispose();
                 }
-                
+
                 var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
@@ -534,8 +546,11 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("TestService")]
         [HttpGet]
-        public async Task<IActionResult> TestService()
+        public async Task<IActionResult> TestService([FromRoute] int start, [FromRoute] int count)
         {
+ 
+            return Ok();
+
             var messages = new List<string>();
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 
@@ -545,13 +560,13 @@ namespace Timkoto.UsersApi.Controllers
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where np.season = '2020' and gp.contestId = '{7}';";
+                        where np.season = '2020' and gp.contestId = '{1}';";
 
             var contestPlayers = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 
             var groupedPlayers = contestPlayers.GroupBy(_ => _.Position).Select(g => new { Position = g.Key, Players = g.ToList() }).ToList();
 
-            foreach (var player in players)
+            foreach (var player in players.OrderBy(_ => _.Id).Skip(start).Take(count))
             {
                 var transaction = await _transactionService.AddTransaction(new AddTransactionRequest
                 {
@@ -576,15 +591,15 @@ namespace Timkoto.UsersApi.Controllers
                 foreach (var groupedPlayer in groupedPlayers)
                 {
                     var random = new Random();
-                    var count = groupedPlayer.Players.Count;
-                    var index1 = random.Next(0, count - 1);
+                    var playerCount = groupedPlayer.Players.Count;
+                    var index1 = random.Next(0, playerCount - 1);
 
                     if (groupedPlayer.Position != "C")
                     {
                         int index2;
                         do
                         {
-                            index2 = random.Next(0, count - 1);
+                            index2 = random.Next(0, playerCount - 1);
                         } while (index1 == index2);
 
                         groupedPlayer.Players[index1].Selected = true;
@@ -606,7 +621,7 @@ namespace Timkoto.UsersApi.Controllers
                         AgentId = player.AgentId,
                         OperatorId = player.OperatorId,
                         UserId = player.Id,
-                        ContestId = 7,
+                        ContestId = 1,
                         PlayerTeamId = 0,
                         TeamName = player.UserName
                     }
@@ -614,7 +629,7 @@ namespace Timkoto.UsersApi.Controllers
             }
 
 
-            return Ok();
+            return Ok("true");
         }
     }
 }

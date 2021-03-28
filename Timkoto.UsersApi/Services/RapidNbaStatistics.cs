@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using NHibernate;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
@@ -45,10 +46,28 @@ namespace Timkoto.UsersApi.Services
 
                 if (!gameIds.Any())
                 {
-                    return "No live results";
+                    return "No live results.";
                 }
 
                 var updateResult = false;
+
+                var contest = await _persistService.FindOne<Contest>(_ =>
+                    _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+
+                if (contest == null)
+                {
+                    return "No Ongoing or Upcoming contest.";
+                }
+
+                if (contest.ContestState == ContestState.Upcoming)
+                {
+                    contest.ContestState = ContestState.Ongoing;
+                    var updateContestResult = await _persistService.Update(contest);
+                    if (!updateContestResult)
+                    {
+                        return "Update contest to Ongoing failed.";
+                    }
+                }
 
                 foreach (var gameId in gameIds)
                 {
@@ -108,18 +127,19 @@ namespace Timkoto.UsersApi.Services
             }
         }
 
-        public async Task<bool> GetFinalStats(List<string> messages)
+        public async Task<string> GetFinalStats(List<string> messages)
         {
             try
             {
                 var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
-                    return false;
+                    return "No onging contest";
                 }
 
                 var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
                 var gameIds = games.Select(_ => _.Id);
+                var teamPlayerIds = new List<TeamPlayerId>();
 
                 foreach (var gameId in gameIds)
                 {
@@ -140,7 +160,6 @@ namespace Timkoto.UsersApi.Services
 
                     foreach (var apiStatistic in response.api.statistics)
                     {
-
                         decimal.TryParse(apiStatistic.points, out decimal points);
                         decimal.TryParse(apiStatistic.totReb, out decimal totReb);
                         totReb *= 1.2m;
@@ -159,13 +178,37 @@ namespace Timkoto.UsersApi.Services
 
                     var sqlUpdate = string.Join(";", updates);
                     await _persistService.ExecuteSql($"{sqlUpdate};");
+
+                    teamPlayerIds.AddRange(response.api.statistics.Select(_ => new TeamPlayerId
+                        { PlayerId = _.playerId, TeamId = _.teamId }));
                 }
 
-                return true;
+                var createTempTableSql =
+                    "CREATE TEMPORARY TABLE `timkotodb`.`tempTeamPlayerId` (`id` INT NOT NULL AUTO_INCREMENT, `teamId` VARCHAR(40) NULL, `playerId` VARCHAR(40) NULL,PRIMARY KEY(`id`));";
+
+                var createResult = await _persistService.ExecuteSql(createTempTableSql);
+
+                var sqlInsert = "INSERT INTO `timkotodb`.`tempTeamPlayerId` (`teamId`, `playerId`) VALUES ";
+                var sqlValues = string.Join(",", teamPlayerIds.Select(_ => $"('{_.TeamId}', '{_.PlayerId}')"));
+
+                var sqlInsertResult = await _persistService.ExecuteSql($"{sqlInsert} {sqlValues};");
+
+                var findSql = @"select teamId, playerId
+                        from `timkotodb`.`tempTeamPlayerId` t1
+                    where not exists(
+                        select 1
+                    from `timkotodb`.`gamePlayer` t2
+                        where t1.teamId = t2.teamId and t1.playerId = t2.playerId
+                        );";
+
+                var missingTeamPlayerIds = await _persistService.SqlQuery<TeamPlayerId>(findSql);
+
+
+                return $"Unmatched PlayerIds - {JsonConvert.SerializeObject(missingTeamPlayerIds)}";
             }
             catch (Exception ex)
             {
-                return false;
+                return ex.Message;
             }
         }
 
