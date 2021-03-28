@@ -56,6 +56,7 @@
         InvalidResetCode,
         UserNameExists,
         NoTransactionFound,
-        TimeZoneLookUpError
+        TimeZoneLookUpError,
+        ContestPackageNotAssigned
     }
 }

@@ -198,12 +198,23 @@ namespace Timkoto.UsersApi.Services
 
             var teams = await _contestService.GetGames(contest.Id, messages);
 
+            var sqlQuery =
+                $@"SELECT totalPackage, entryPoints, tag FROM timkotodb.contestPrize cpr
+                        inner join timkotodb.contestPool cpl 
+                        on cpl.contestPrizeId = cpr.id
+                        where cpl.operatorId =  '{operatorId}' and cpl.contestId = '{contest.Id}';";
+
+            var contestPackages = await _persistService.SqlQuery<ContestPackage>(sqlQuery);
+
+            var contestPackage = contestPackages?.FirstOrDefault();
+
             genericResponse.Data  = new 
             {
                 balance.Data.Balance,
                 prizePool.Data.PrizePool,
                 contest,
                 teams.Data.Teams,
+                contestPackage
             };
 
             return genericResponse;

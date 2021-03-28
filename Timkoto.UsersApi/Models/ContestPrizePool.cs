@@ -4,6 +4,8 @@
     {
         public long Id { get; set; }
 
+        public long ContestId { get; set; }
+
         public string DisplayRank { get; set; }
 
         public int FromRank { get; set; }

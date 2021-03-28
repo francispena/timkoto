@@ -31,10 +31,6 @@ namespace Timkoto.Data.Repositories
             Index = "contestState_ix", Length = 20, NotNull = true)]
         public virtual ContestState ContestState { get; set; }
 
-        [Property(Name = "EntryPoints", Column = "entryPoints", TypeType = typeof(decimal), Scale = 2, Precision = 10,
-            Index = "entryPoints_ix", NotNull = true)]
-        public virtual decimal EntryPoints { get; set; }
-        
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

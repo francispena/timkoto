@@ -33,12 +33,15 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly IContestService _contestService;
 
-        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics, IContestService contestService)
+        private readonly ITransactionService _transactionService;
+
+        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics, IContestService contestService, ITransactionService transactionService)
         {
             _httpService = httpService;
             _persistService = persistService;
             _rapidNbaStatistics = rapidNbaStatistics;
             _contestService = contestService;
+            _transactionService = transactionService;
         }
 
         [Route("GetTeams")]
@@ -372,7 +375,7 @@ namespace Timkoto.UsersApi.Controllers
         public async Task<IActionResult> GetLiveStats()
         {
             var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
-
+            
             return Ok(result);
         }
 
@@ -412,6 +415,113 @@ namespace Timkoto.UsersApi.Controllers
             return Ok(result);
         }
 
+        [Route("UpdateGameIds")]
+        [HttpGet]
+        public async Task<IActionResult> UpdateGameIds()
+        {
+            var messages = new List<string>();
+
+            ITransaction tx = null;
+            var dbSession = _persistService.GetSession();
+
+            try
+            {
+                var gameDates = new[]
+                {
+                    DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd"),
+                    DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd")
+                };
+
+                TimeZoneInfo easternZone = null;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                }
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+                }
+
+                if (easternZone == null)
+                {
+                    var genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TimeZoneLookUpError);
+                    return StatusCode(403, genericResponse);
+                }
+
+                var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
+                var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
+
+                var games = new List<RapidApiGamesGame>();
+
+                foreach (var gameDate in gameDates)
+                {
+                    var response = await _httpService.GetAsync<RapidApiGames>(
+                        $"https://api-nba-v1.p.rapidapi.com/games/date/{gameDate}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC, easternZone) == dayOfGamesToGet));
+                }
+
+                if (!games.Any())
+                {
+                    return Ok($"No Game Found for {dayOfGamesToGet}");
+                }
+
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+  
+                var dbGames = new List<Game>();
+                foreach (var game in games)
+                {
+                    dbGames.Add(new Game
+                    {
+                        ContestId = contest.Id,
+                        HTeamId = game.hTeam.teamId,
+                        VTeamId = game.vTeam.teamId,
+                        Id = game.gameId,
+                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
+                        Finished = false
+                    });
+                }
+
+                var sqlUpdateGame =
+                    string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
+
+                var sqlUpdateGamePlayer =  string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
+                
+                tx = dbSession.BeginTransaction();
+
+                await dbSession.CreateSQLQuery(sqlUpdateGame).ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateGamePlayer).ExecuteUpdateAsync();
+
+                await tx.CommitAsync();
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return Ok(true);
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                    dbSession.Close();
+                    dbSession.Dispose();
+                }
+                
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
 
         //[Route("BroadcastRanks")]
         //[HttpPost]
@@ -422,14 +532,89 @@ namespace Timkoto.UsersApi.Controllers
         //    return Ok();
         //}
 
-        //[Route("TestService")]
-        //[HttpGet]
-        //public async Task<IActionResult> TestService()
-        //{
-        //    var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
-        //    //var result = true;
+        [Route("TestService")]
+        [HttpGet]
+        public async Task<IActionResult> TestService()
+        {
+            var messages = new List<string>();
+            var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 
-        //    return Ok(httpOnlyAccessToken);
-        //}
+            var sqlQuery =
+                $@"SELECT np.id as playerId, concat(lastName, ', ', firstName) as playerName, np.jersey, nt.nickName as team, np.position, gp.salary FROM timkotodb.gamePlayer gp 
+                        inner join nbaPlayer np
+                        on gp.playerId = np.id
+                        inner join nbaTeam nt 
+                        on nt.id = np.teamId 
+                        where np.season = '2020' and gp.contestId = '{7}';";
+
+            var contestPlayers = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
+
+            var groupedPlayers = contestPlayers.GroupBy(_ => _.Position).Select(g => new { Position = g.Key, Players = g.ToList() }).ToList();
+
+            foreach (var player in players)
+            {
+                var transaction = await _transactionService.AddTransaction(new AddTransactionRequest
+                {
+                    AgentId = player.AgentId,
+                    Amount = 100,
+                    OperatorId = player.OperatorId,
+                    TransactionType = TransactionType.WalletDebit,
+                    UserId = player.Id,
+                    UserType = UserType.Player
+                }, true, messages);
+
+                if (!transaction.IsSuccess)
+                {
+                    continue;
+                }
+
+                foreach (var contestPlayer in groupedPlayers.SelectMany(_ => _.Players))
+                {
+                    contestPlayer.Selected = false;
+                }
+
+                foreach (var groupedPlayer in groupedPlayers)
+                {
+                    var random = new Random();
+                    var count = groupedPlayer.Players.Count;
+                    var index1 = random.Next(0, count - 1);
+
+                    if (groupedPlayer.Position != "C")
+                    {
+                        int index2;
+                        do
+                        {
+                            index2 = random.Next(0, count - 1);
+                        } while (index1 == index2);
+
+                        groupedPlayer.Players[index1].Selected = true;
+                        groupedPlayer.Players[index2].Selected = true;
+                    }
+                    else
+                    {
+                        groupedPlayer.Players[index1].Selected = true;
+                    }
+                }
+
+                var playerLineUp = (List<PlayerLineUp>)JsonConvert.DeserializeObject(JsonConvert.SerializeObject(groupedPlayers), typeof(List<PlayerLineUp>));
+
+                await _contestService.SubmitLineUp(new LineUpRequest
+                {
+                    LineUp = playerLineUp,
+                    LineUpTeam = new LineUpTeam
+                    {
+                        AgentId = player.AgentId,
+                        OperatorId = player.OperatorId,
+                        UserId = player.Id,
+                        ContestId = 7,
+                        PlayerTeamId = 0,
+                        TeamName = player.UserName
+                    }
+                }, messages);
+            }
+
+
+            return Ok();
+        }
     }
 }

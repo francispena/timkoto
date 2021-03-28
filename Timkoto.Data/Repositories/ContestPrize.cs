@@ -14,6 +14,10 @@ namespace Timkoto.Data.Repositories
             Index = "totalPackage_ix", NotNull = true)]
         public virtual decimal TotalPackage { get; set; }
 
+        [Property(Name = "EntryPoints", Column = "entryPoints", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "entryPoints_ix", NotNull = true)]
+        public virtual decimal EntryPoints { get; set; }
+
         [Property(Name = "Tag", Column = "tag", TypeType = typeof(string),
             Index = "tag_ix", NotNull = true)]
         public virtual decimal Tag { get; set; }

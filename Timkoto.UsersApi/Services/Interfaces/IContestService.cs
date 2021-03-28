@@ -24,7 +24,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
 
         Task<GenericResponse> TeamHistoryRanks(long operatorId, string gameDate, List<string> messages);
 
-        Task ComputePrizePool(long operatorId, List<ContestPrizePool> contestPrizePool);
+        Task ComputePrizePool(long operatorId, long contestId, List<ContestPrizePool> contestPrizePool);
 
         Task<string> SetPrizesInTransaction(List<string> messages);
     }

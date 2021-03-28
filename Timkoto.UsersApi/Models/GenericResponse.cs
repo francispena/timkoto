@@ -149,6 +149,8 @@ namespace Timkoto.UsersApi.Models
                     return "User name exists, please give another user name.";
                 case Results.NoTransactionFound:
                     return "No transactions found.";
+                case Results.ContestPackageNotAssigned:
+                    return "Contest package not assigned.";
             }
 
             return "";
