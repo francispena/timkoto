@@ -151,6 +151,8 @@ namespace Timkoto.UsersApi.Models
                     return "No transactions found.";
                 case Results.ContestPackageNotAssigned:
                     return "Contest package not assigned.";
+                case Results.NoContestPackage:
+                    return "No Contest package defined.";
             }
 
             return "";

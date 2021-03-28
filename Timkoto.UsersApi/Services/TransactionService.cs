@@ -72,7 +72,7 @@ namespace Timkoto.UsersApi.Services
 
             return result > 0
                  ? GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionAdded)
-                 : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.AddTransactionFailed);
+                 : GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AddTransactionFailed);
         }
 
         public async Task<GenericResponse> Balance(long userId, List<string> messages)

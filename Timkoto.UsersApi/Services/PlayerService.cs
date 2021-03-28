@@ -190,6 +190,11 @@ namespace Timkoto.UsersApi.Services
 
             var prizePool = await _contestService.PrizePool(operatorId, messages);
 
+            if (prizePool?.Data?.PrizePool == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
+            }
+
             var contest = await _persistService.FindOne<Contest>(_ =>
                 _.ContestState != ContestState.Finished);
             
@@ -209,6 +214,10 @@ namespace Timkoto.UsersApi.Services
             var contestPackages = await _persistService.SqlQuery<ContestPackage>(sqlQuery);
 
             var contestPackage = contestPackages?.FirstOrDefault();
+            if (contestPackage == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestPackage);
+            }
 
             genericResponse.Data  = new 
             {

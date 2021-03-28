@@ -182,11 +182,11 @@ namespace Timkoto.UsersApi.Authorization
 
                 return setPasswordResult.HttpStatusCode == HttpStatusCode.OK
                     ? GenericResponse.Create(true, HttpStatusCode.OK, Results.ChangePasswordSucceeded)
-                    : GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+                    : GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
             }
             catch 
             {
-                return GenericResponse.Create(true, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
             }
         }
     }

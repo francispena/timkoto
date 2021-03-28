@@ -57,6 +57,7 @@
         UserNameExists,
         NoTransactionFound,
         TimeZoneLookUpError,
-        ContestPackageNotAssigned
+        ContestPackageNotAssigned,
+        NoContestPackage
     }
 }

@@ -565,13 +565,13 @@ namespace Timkoto.UsersApi.Services
                 on cp.contestId = c.id
                 inner join timkotodb.prizePool pp
                 on pp.contestPrizeId = cp.contestPrizeId
-                where c.contestState in != 'Finished' and '{operatorId}';";
+                where c.contestState != 'Finished' and '{operatorId}';";
 
             var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
 
             if (contestPrizePool == null || !contestPrizePool.Any())
             {
-                return GenericResponse.Create(false, HttpStatusCode.OK, Results.PrizePoolNotSet);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
             }
 
             await ComputePrizePool(operatorId, contestPrizePool.First().ContestId, contestPrizePool);
@@ -645,7 +645,7 @@ namespace Timkoto.UsersApi.Services
 
             if (teamRankPrizes == null || !teamRankPrizes.Any())
             {
-                return GenericResponse.Create(false, HttpStatusCode.OK, Results.NoContestTeamFound);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestTeamFound);
             }
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.ContestTeamFound);
@@ -737,7 +737,7 @@ namespace Timkoto.UsersApi.Services
 
             if (teamRankPrizes == null || !teamRankPrizes.Any())
             {
-                return GenericResponse.Create(false, HttpStatusCode.OK, Results.NoContestTeamFound);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestTeamFound);
             }
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.ContestTeamFound);

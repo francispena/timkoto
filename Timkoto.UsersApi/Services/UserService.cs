@@ -78,7 +78,7 @@ namespace Timkoto.UsersApi.Services
                     await _persistService.Delete(user);
 
                     genericResponse =
-                        GenericResponse.Create(true, HttpStatusCode.Forbidden, createResult);
+                        GenericResponse.Create(false, HttpStatusCode.Forbidden, createResult);
                 }
             }
             else if (result == -1000)
