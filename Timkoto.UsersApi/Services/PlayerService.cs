@@ -184,7 +184,7 @@ namespace Timkoto.UsersApi.Services
                 _.IsActive && _.UserType == UserType.Player && _.Id == userId);
             if (user == null)
             {
-                return GenericResponse.Create(false, HttpStatusCode.OK, Results.PlayerNotFound);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PlayerNotFound);
             }
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
@@ -194,7 +194,12 @@ namespace Timkoto.UsersApi.Services
             var prizePool = await _contestService.PrizePool(operatorId, messages);
 
             var contest = await _persistService.FindOne<Contest>(_ =>
-                _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+                _.ContestState != ContestState.Finished);
+            
+            if (contest == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoContestFound);
+            }
 
             var teams = await _contestService.GetGames(contest.Id, messages);
 

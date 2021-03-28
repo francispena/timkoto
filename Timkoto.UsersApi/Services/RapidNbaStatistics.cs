@@ -158,17 +158,15 @@ namespace Timkoto.UsersApi.Services
                     }
 
                     var sqlUpdate = string.Join(";", updates);
-                    var updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
-
-                    return updateResult;
+                    await _persistService.ExecuteSql($"{sqlUpdate};");
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
                 return false;
             }
-
-            return false;
         }
 
         private async Task<string> GetStatsForFinishedGames(List<string> messages)

@@ -309,26 +309,39 @@ namespace Timkoto.UsersApi.Services
                 //process by operatorId
                 foreach (var groupedTeamPoint in groupedTeamsByOperatorId)
                 {
-                    var contestPool =
-                        await _persistService.FindOne<ContestPool>(_ =>
-                            _.ContestId == contest.Id && _.OperatorId == groupedTeamPoint.OperatorId);
+                    //var contestPool =
+                    //    await _persistService.FindOne<ContestPool>(_ =>
+                    //        _.ContestId == contest.Id && _.OperatorId == groupedTeamPoint.OperatorId);
 
-                    if (contestPool == null)
+                    //if (contestPool == null)
+                    //{
+                    //    continue;
+                    //}
+
+                    //var prizePool =
+                    //    await _persistService.FindMany<PrizePool>(_ => _.ContestPrizeId == contestPool.ContestPrizeId);
+
+                    sqlQuery =
+                        $@"SELECT c.id as contestId, pp.id, fromRank, toRank, prize FROM timkotodb.contest c 
+                            inner join timkotodb.contestPool cp
+                            on cp.contestId = c.id
+                            inner join timkotodb.prizePool pp
+                            on pp.contestPrizeId = cp.contestPrizeId
+                            where c.contestState in ('Upcoming', 'Ongoing') and '{groupedTeamPoint.OperatorId}';";
+
+                    var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
+
+                    if (contestPrizePool == null || !contestPrizePool.Any())
                     {
                         continue;
                     }
 
-                    var prizePool =
-                        await _persistService.FindMany<PrizePool>(_ => _.ContestPrizeId == contestPool.ContestPrizeId);
+                    await ComputePrizePool(groupedTeamPoint.OperatorId, contestPrizePool.First().ContestId, contestPrizePool);
 
-                    if (prizePool == null || !prizePool.Any())
-                    {
-                        continue;
-                    }
 
                     var prizeQueue = new Queue();
 
-                    foreach (var prize in prizePool)
+                    foreach (var prize in contestPrizePool)
                     {
                         actualPrizePools.Add(new ActualPrizePool
                         {
@@ -565,7 +578,7 @@ namespace Timkoto.UsersApi.Services
                 on cp.contestId = c.id
                 inner join timkotodb.prizePool pp
                 on pp.contestPrizeId = cp.contestPrizeId
-                where c.contestState in ('Upcoming', 'Ongoing') and '{operatorId}';";
+                where c.contestState in ('Upcoming', 'Ongoing', 'Scheduled') and '{operatorId}';";
 
             var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
 

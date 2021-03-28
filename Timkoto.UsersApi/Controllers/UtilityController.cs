@@ -495,8 +495,8 @@ namespace Timkoto.UsersApi.Controllers
                 
                 tx = dbSession.BeginTransaction();
 
-                await dbSession.CreateSQLQuery(sqlUpdateGame).ExecuteUpdateAsync();
-                await dbSession.CreateSQLQuery(sqlUpdateGamePlayer).ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateGame + ";").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateGamePlayer + ";").ExecuteUpdateAsync();
 
                 await tx.CommitAsync();
                 dbSession.Close();
