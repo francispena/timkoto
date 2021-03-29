@@ -279,7 +279,6 @@ namespace Timkoto.UsersApi.Services
                     dbSession.Dispose();
                 }
             }
-           
         }
 
         public async Task<string> SetPrizes(List<string> messages)

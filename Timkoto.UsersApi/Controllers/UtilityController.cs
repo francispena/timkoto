@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
@@ -17,7 +18,7 @@ using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi.Controllers
 {
-    [Route("api/utility/v1/")]
+    [Route("api/utility/v1")]
     [ApiController]
     public class UtilityController : ControllerBase
     {
@@ -31,13 +32,54 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly ITransactionService _transactionService;
 
-        public UtilityController(IHttpService httpService, IPersistService persistService, IRapidNbaStatistics rapidNbaStatistics, IContestService contestService, ITransactionService transactionService)
+        private readonly ICognitoUserStore _cognitoUserStore;
+
+        public UtilityController(IHttpService httpService, IPersistService persistService,
+            IRapidNbaStatistics rapidNbaStatistics, IContestService contestService,
+            ITransactionService transactionService, ICognitoUserStore cognitoUserStore)
         {
             _httpService = httpService;
             _persistService = persistService;
             _rapidNbaStatistics = rapidNbaStatistics;
             _contestService = contestService;
             _transactionService = transactionService;
+            _cognitoUserStore = cognitoUserStore;
+        }
+
+        [Route("CheckHealth")]
+        [HttpGet]
+        public async Task<IActionResult> CheckHealth()
+        {
+            var messages = new List<string> { "HealthController.CheckHealth" };
+
+            try
+            {
+                var authenticateResult = await _cognitoUserStore.AuthenticateAsync("iskoap@yahoo.com", "password1", messages);
+
+                var dbTestResult = await _persistService.FindOne<User>(_ => _.Email == "iskoap@yahoo.com");
+                var result = new
+                {
+                    CognitoTest = authenticateResult.Result,
+                    DBTest = dbTestResult
+                };
+
+                if (authenticateResult.IsSuccess && dbTestResult != null)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return StatusCode(403, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+            finally
+            {
+               // _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+            }
         }
 
         [Route("GetTeams")]
@@ -162,7 +204,6 @@ namespace Timkoto.UsersApi.Controllers
                         });
                     }
                 }
-                //INSERT INTO `timkotodb`.`nbaPlayer` (`teamId`, `firstName`, `lastName`, `jersey`, `position`, `season`, `salary`) VALUES ('id', 'fname', 'lname', 'jer', 'pos', '2020', '100');
 
                 var sqlInsert = "INSERT INTO `timkotodb`.`nbaPlayer` (`id`, `teamId`, `firstName`, `lastName`, `jersey`, `position`, `season`, `salary`) VALUES ";
                 var sqlValues = string.Join(",", players.Select(_ => $"('{_.Id}', '{_.TeamId}', '{_.FirstName.Replace("'", "''")}', '{_.LastName.Replace("'", "''")}', '{_.Jersey}', '{_.Position.Replace("'", "''")}', '2020', '0.00')"));
@@ -266,7 +307,7 @@ namespace Timkoto.UsersApi.Controllers
                 var dbSession = _persistService.GetSession();
                 tx = dbSession.BeginTransaction();
 
-                //await dbSession.SaveAsync(contest);
+                await dbSession.SaveAsync(contest);
 
                 var dbGames = new List<Game>();
                 foreach (var game in games)
@@ -305,9 +346,9 @@ namespace Timkoto.UsersApi.Controllers
                     GameId = dbGames.First(_ => _.HTeamId == hPlayer.TeamId && _.ContestId == contest.Id).Id,
                     TeamId = hPlayer.TeamId,
                     PlayerId = hPlayer.Id,
-                    TeamLocation = LocationType.Home
-                })
-                    .ToList();
+                    TeamLocation = LocationType.Home,
+                    Salary = hPlayer.Salary
+                }).ToList();
 
                 //get visitor players
                 gamePlayers.AddRange(
@@ -317,15 +358,15 @@ namespace Timkoto.UsersApi.Controllers
                         GameId = dbGames.First(_ => _.VTeamId == vPlayer.TeamId && _.ContestId == contest.Id).Id,
                         TeamId = vPlayer.TeamId,
                         PlayerId = vPlayer.Id,
-                        TeamLocation = LocationType.Visitor
-                    })
-                        .ToList()
+                        TeamLocation = LocationType.Visitor,
+                        Salary = vPlayer.Salary
+                    }).ToList()
                 );
 
                 sqlInsert =
-                    "INSERT INTO `gamePlayer` (`contestId`,`GameId`,`teamId`,`teamLocation`,`playerId`) VALUES ";
+                    "INSERT INTO `gamePlayer` (`contestId`,`GameId`,`teamId`,`teamLocation`,`playerId`,`salary`) VALUES ";
                 sqlValues =
-                    string.Join(",", gamePlayers.Select(_ => $"({_.ContestId},'{_.GameId}','{_.TeamId}','{_.TeamLocation}','{_.PlayerId}')"));
+                    string.Join(",", gamePlayers.Select(_ => $"({_.ContestId},'{_.GameId}','{_.TeamId}','{_.TeamLocation}','{_.PlayerId}','{_.Salary}')"));
 
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
 
@@ -544,13 +585,13 @@ namespace Timkoto.UsersApi.Controllers
         //    return Ok();
         //}
 
-        [Route("TestService")]
+        [Route("TestService/{start}/{count}")]
         [HttpGet]
         public async Task<IActionResult> TestService([FromRoute] int start, [FromRoute] int count)
         {
  
-            return Ok();
-
+            //return Ok();
+            var contestId = 2;
             var messages = new List<string>();
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 
@@ -560,7 +601,7 @@ namespace Timkoto.UsersApi.Controllers
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where np.season = '2020' and gp.contestId = '{1}';";
+                        where np.season = '2020' and gp.contestId = '{contestId}';";
 
             var contestPlayers = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 
@@ -621,13 +662,12 @@ namespace Timkoto.UsersApi.Controllers
                         AgentId = player.AgentId,
                         OperatorId = player.OperatorId,
                         UserId = player.Id,
-                        ContestId = 1,
+                        ContestId = contestId,
                         PlayerTeamId = 0,
                         TeamName = player.UserName
                     }
                 }, messages);
             }
-
 
             return Ok("true");
         }

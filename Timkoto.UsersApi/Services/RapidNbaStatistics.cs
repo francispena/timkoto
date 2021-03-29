@@ -29,27 +29,20 @@ namespace Timkoto.UsersApi.Services
         {
             try
             {
-                var responseLive = await _httpService.GetAsync<RapidApiLive>(
-                    $"https://api-nba-v1.p.rapidapi.com/games/live/",
-                    new Dictionary<string, string>
-                    {
-                        {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
-                        {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
-                    });
+                //var responseLive = await _httpService.GetAsync<RapidApiLive>(
+                //    $"https://api-nba-v1.p.rapidapi.com/games/live/",
+                //    new Dictionary<string, string>
+                //    {
+                //        {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                //        {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                //    });
 
-                if (responseLive?.api?.games == null)
-                {
-                    return "NoGame";
-                }
+                //if (responseLive?.api?.games == null)
+                //{
+                //    return "NoGame";
+                //}
 
-                var gameIds = responseLive.api.games.Select(_ => _.gameId).ToList();
-
-                if (!gameIds.Any())
-                {
-                    return "No live results.";
-                }
-
-                var updateResult = false;
+                //var gameIds = responseLive.api.games.Select(_ => _.gameId).ToList();
 
                 var contest = await _persistService.FindOne<Contest>(_ =>
                     _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
@@ -69,8 +62,23 @@ namespace Timkoto.UsersApi.Services
                     }
                 }
 
-                foreach (var gameId in gameIds)
+                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
+
+                if (!games.Any())
                 {
+                    return "No live results.";
+                }
+
+                foreach (var game in games)
+                {
+                    var startTime = TimeZoneInfo.ConvertTimeToUtc(game.StartTime);
+                    if (DateTime.UtcNow.Subtract(startTime).TotalMinutes <= 0 || game.Finished)
+                    {
+                        continue;
+                    }
+
+                    var gameId = game.Id;
+
                     var response = await _httpService.GetAsync<GamePlayerStatiscs>(
                     $"https://api-nba-v1.p.rapidapi.com/statistics/players/gameId/{gameId}",
                     new Dictionary<string, string>
@@ -88,7 +96,7 @@ namespace Timkoto.UsersApi.Services
 
                     foreach (var apiStatistic in response.api.statistics)
                     {
-                      
+
                         decimal.TryParse(apiStatistic.points, out decimal points);
                         decimal.TryParse(apiStatistic.totReb, out decimal totReb);
                         totReb *= 1.2m;
@@ -105,21 +113,39 @@ namespace Timkoto.UsersApi.Services
                         updates.Add($@"UPDATE `timkotodb`.`gamePlayer` SET `points` = {points}, `rebounds` = {totReb}, `assists` = {assists}, `steals` = {steals}, `blocks` = {blocks}, `turnOvers` = {turnovers}, `totalPoints` = {totalPoints} WHERE(`gameId` = '{gameId}' and playerId = '{apiStatistic.playerId}')");
                     }
 
+                    if (!updates.Any())
+                    {
+                        continue;
+                    }
+
                     var sqlUpdate = string.Join(";", updates);
-                    updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
+                    var updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
+
+                    if (!updateResult)
+                    {
+                        continue;
+                    }
+
+                    var gameDetails = await _httpService.GetAsync<RapidApiGames>(
+                        $"https://api-nba-v1.p.rapidapi.com/games/gameId/{gameId}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+
+                    if (gameDetails?.Api?.games == null || !gameDetails.Api.games.Any())
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(gameDetails.Api?.games[0]?.statusGame, "Finished", StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        await _persistService.ExecuteSql($"UPDATE `timkotodb`.`game` SET `finished` = '1' WHERE (`id` = '{gameId}');");
+                    }
                 }
 
-                if (updateResult)
-                {
-                    var result = await GetStatsForFinishedGames(messages);
-
-                    return result;
-                }
-                else
-                {
-                    return "Update gamePlayer failed";
-                }
-                
+                return "Stats updated.";
             }
             catch (Exception ex)
             {
@@ -180,7 +206,7 @@ namespace Timkoto.UsersApi.Services
                     await _persistService.ExecuteSql($"{sqlUpdate};");
 
                     teamPlayerIds.AddRange(response.api.statistics.Select(_ => new TeamPlayerId
-                        { PlayerId = _.playerId, TeamId = _.teamId }));
+                    { PlayerId = _.playerId, TeamId = _.teamId }));
                 }
 
                 var createTempTableSql =
