@@ -13,5 +13,8 @@
         public int ToRank { get; set; }
 
         public decimal Prize { get; set; }
+
+        public string DisplayPrize { get; set; }
+
     }
 }

@@ -195,6 +195,11 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
             }
 
+            foreach (var prizes in prizePool.Data.PrizePool)
+            {
+                prizes.DisplayPrize = prizes.Prize.ToString("##,###.00");
+            }
+
             var contest = await _persistService.FindOne<Contest>(_ =>
                 _.ContestState != ContestState.Finished);
             
