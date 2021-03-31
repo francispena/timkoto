@@ -118,7 +118,7 @@ namespace Timkoto.UsersApi.Models
                 case Results.AuthenticationError:
                     return "Login process error, please contact your agent.";
                 case Results.TeamSubmissionNotAccepted:
-                    return "Team submission not accepted.";
+                    return "Team submission not accepted, contest has started.";
                 case Results.AmountNotAccepted:
                     return "Amount not accepted.";
                 case Results.NoTeamFound:
@@ -146,13 +146,17 @@ namespace Timkoto.UsersApi.Models
                 case Results.InvalidResetCode:
                     return "Invalid password reset code.";
                 case Results.UserNameExists:
-                    return "User name exists, please give another user name.";
+                    return "Username is not available, please set a different user name.";
                 case Results.NoTransactionFound:
                     return "No transactions found.";
                 case Results.ContestPackageNotAssigned:
                     return "Contest package not assigned.";
                 case Results.NoContestPackage:
                     return "No Contest package defined.";
+                case Results.ExceededSalary:
+                    return "Players' total salary exceeded the salary cap.";
+                case Results.UserNameAvailable:
+                    return "Username is available.";
             }
 
             return "";

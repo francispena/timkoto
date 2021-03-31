@@ -177,5 +177,32 @@ namespace Timkoto.UsersApi.Controllers
                 //TODO: logging
             }
         }
+
+        [Route("checkUserName")]
+        [HttpPost]
+        public async Task<IActionResult> CheckUserName([FromBody] AddUserRequest request)
+        {
+            var messages = new List<string> { "UserController.checkUserName", $"request - {JsonConvert.SerializeObject(request)}" };
+            GenericResponse result;
+
+            //validate token against DB
+            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+
+            try
+            {
+                result = await _userService.CheckUserName(request, messages);
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+            }
+        }
     }
 }

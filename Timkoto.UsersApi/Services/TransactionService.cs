@@ -78,7 +78,7 @@ namespace Timkoto.UsersApi.Services
         public async Task<GenericResponse> Balance(long userId, List<string> messages)
         {
             var lastTransaction = await
-                _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.CreateDateTime);
+                _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.Id);
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.TransactionFound);
             if (lastTransaction != null)

@@ -591,7 +591,7 @@ namespace Timkoto.UsersApi.Controllers
         {
  
             //return Ok();
-            var contestId = 2;
+            var contestId = 3;
             var messages = new List<string>();
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 

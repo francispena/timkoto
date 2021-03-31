@@ -72,10 +72,10 @@ namespace Timkoto.UsersApi.Services
                 foreach (var game in games)
                 {
                     var startTime = TimeZoneInfo.ConvertTimeToUtc(game.StartTime);
-                    if (DateTime.UtcNow.Subtract(startTime).TotalMinutes <= 0 || game.Finished)
-                    {
-                        continue;
-                    }
+                    //if (DateTime.UtcNow.Subtract(startTime).TotalMinutes <= 0 || game.Finished)
+                    //{
+                    //    continue;
+                    //}
 
                     var gameId = game.Id;
 
@@ -160,11 +160,11 @@ namespace Timkoto.UsersApi.Services
                 var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
-                    return "No onging contest";
+                    return "No ongoing contest";
                 }
 
                 var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
-                var gameIds = games.Select(_ => _.Id);
+                var gameIds = games.Select(_ => _.Id).ToList();
                 var teamPlayerIds = new List<TeamPlayerId>();
 
                 foreach (var gameId in gameIds)
@@ -228,13 +228,140 @@ namespace Timkoto.UsersApi.Services
                         );";
 
                 var missingTeamPlayerIds = await _persistService.SqlQuery<TeamPlayerId>(findSql);
-
+                if (missingTeamPlayerIds.Any())
+                {
+                    await FixMissingPlayers(missingTeamPlayerIds, contest.Id, messages);
+                }
 
                 return $"Unmatched PlayerIds - {JsonConvert.SerializeObject(missingTeamPlayerIds)}";
             }
             catch (Exception ex)
             {
                 return ex.Message;
+            }
+        }
+
+        private async Task<string> FixMissingPlayers(List<TeamPlayerId> teamPlayerIds, long contestId, List<string> messages)
+        {
+            ITransaction tx = null;
+
+            try
+            {
+                foreach (var teamPlayerId in teamPlayerIds)
+                {
+                    var response = await _httpService.GetAsync<RapidApiPlayers>(
+                        $"https://api-nba-v1.p.rapidapi.com/players/playerId/{teamPlayerId.PlayerId}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+
+                    if (response?.Api?.players == null)
+                    {
+                        continue;
+                    }
+
+                    if (!response.Api.players.Any())
+                    {
+                        continue;
+                    }
+
+                    var player = response.Api.players[0];
+
+                    var nbaPlayer = await _persistService.FindOne<NbaPlayer>(_ =>
+                        _.FirstName == player.firstName && _.LastName == player.lastName);
+
+                    if (nbaPlayer == null)
+                    {
+                        var sqlQuery =
+                            $@"SELECT position, fname, lname, salary, team FROM timkotodb.fdPlayers where fname = '{player.firstName}' and lname = '{player.lastName}';";
+
+                        var fdPlayers = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
+
+                        var salary = 0m;
+                        string position = null;
+                        if (fdPlayers != null && fdPlayers.Any())
+                        {
+                            salary = fdPlayers[0].Salary;
+                            position = fdPlayers[0].Position;
+                        }
+
+                        nbaPlayer = new NbaPlayer
+                        {
+                            FirstName = player.firstName,
+                            Id = player.playerId,
+                            LastName = player.lastName,
+                            Jersey = player.leagues?.standard?.jersey,
+                            Position = position ?? "XX",
+                            Salary = salary,
+                            Season = "2020",
+                            TeamId = teamPlayerId.TeamId
+                        };
+
+                        await _persistService.Save(nbaPlayer);
+
+                        var gamePlayer = await _persistService.FindOne<GamePlayer>(_ =>
+                            _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
+
+                        if (gamePlayer != null)
+                        {
+                            var newGamePlayer = new GamePlayer
+                            {
+                                ContestId = gamePlayer.ContestId,
+                                GameId = gamePlayer.GameId,
+                                TeamId = teamPlayerId.TeamId,
+                                TeamLocation = gamePlayer.TeamLocation,
+                                PlayerId = teamPlayerId.PlayerId
+                            };
+                            await _persistService.Save(newGamePlayer);
+                        }
+                    }
+                    else
+                    {
+                        var gamePlayers = await _persistService.FindMany<GamePlayer>(_ => _.PlayerId == nbaPlayer.Id);
+
+                        if (gamePlayers != null || !gamePlayers.Any())
+                        {
+                            foreach (var gamePlayer in gamePlayers)
+                            {
+                                await _persistService.ExecuteSql(
+                                    $"UPDATE `timkotodb`.`gamePlayer` SET `teamId` = '{teamPlayerId.TeamId}', `playerId` = '{player.playerId}' WHERE (`playerId` = '{nbaPlayer.Id}' and `teamId` = '{gamePlayer.TeamId}');");
+                            }
+                        }
+                        else
+                        {
+                            var gamePlayer = await _persistService.FindOne<GamePlayer>(_ =>
+                                _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
+
+                            if (gamePlayer != null )
+                            {
+                                var newGamePlayer = new GamePlayer
+                                {
+                                    ContestId = gamePlayer.ContestId,
+                                    GameId = gamePlayer.GameId,
+                                    TeamId = teamPlayerId.TeamId,
+                                    TeamLocation = gamePlayer.TeamLocation,
+                                    PlayerId = teamPlayerId.PlayerId
+                                };
+                                await _persistService.Save(newGamePlayer);
+                            }
+                        }
+
+                        await _persistService.ExecuteSql(
+                            $"UPDATE `timkotodb`.`nbaPlayer` SET `id` = '{player.playerId}', `teamId` = '{teamPlayerId.TeamId}' WHERE (`id` = '{nbaPlayer.Id}');");
+                    }
+                }
+                return "success";
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+
+                return $"GetStatsForFinishedGames error - {ex.Message}";
             }
         }
 

@@ -7,8 +7,10 @@ using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components.Forms;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -83,19 +85,28 @@ namespace Timkoto.UsersApi.Services
             genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
 
-            var groupedPlayers = players.GroupBy(_ => _.Position).Select(g => new { Position = g.Key, Players = g.ToList() }).ToList();
+            var groupedPlayers = players.GroupBy(_ => _.Position).Select(g =>
+                new {Position = g.Key, Players = g.ToList().OrderByDescending(_ => _.Salary).ToList()}).ToList();
 
-            genericResponse.Data = groupedPlayers;
+            genericResponse.Data = groupedPlayers.OrderByDescending(_ => _.Position).ToList();
 
             return genericResponse;
         }
 
         public async Task<GenericResponse> SubmitLineUp(LineUpRequest request, List<string> messages)
         {
+            //return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TeamSubmissionNotAccepted);
             var selectedCount = request.LineUp.SelectMany(_ => _.Players).Count(_ => _.Selected);
             if (selectedCount != 9)
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidLineUpCount);
+            }
+
+            var salary = request.LineUp.SelectMany(_ => _.Players).Where(_ => _.Selected).Sum(_ => _.Salary);
+
+            if (salary > 60000)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ExceededSalary);
             }
 
             if (string.IsNullOrWhiteSpace(request.LineUpTeam.TeamName))
@@ -324,7 +335,7 @@ namespace Timkoto.UsersApi.Services
                         continue;
                     }
 
-                    await ComputePrizePool(groupedTeamPoint.OperatorId, contestPrizePool.First().ContestId, contestPrizePool);
+                    contestPrizePool = await ComputePrizePool(groupedTeamPoint.OperatorId, contestPrizePool.First().ContestId, contestPrizePool);
 
                     var prizeQueue = new Queue();
 
@@ -573,7 +584,7 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
             }
 
-            await ComputePrizePool(operatorId, contestPrizePool.First().ContestId, contestPrizePool);
+            contestPrizePool = await ComputePrizePool(operatorId, contestPrizePool.First().ContestId, contestPrizePool);
 
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.PrizePoolFound);
             genericResponse.Data = new
@@ -584,11 +595,11 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task ComputePrizePool(long operatorId, long contestId, List<ContestPrizePool> contestPrizePool)
+        public async Task<List<ContestPrizePool>> ComputePrizePool(long operatorId, long contestId, List<ContestPrizePool> contestPrizePool)
         {
             string sqlQuery;
             const decimal operationsCost = 1000m;
-            const decimal agentCommssionPercent = 0.05m;
+            const decimal agentCommssionPercent = 0.07m;
 
             sqlQuery =
                 $@"SELECT sum(amount) as points FROM timkotodb.playerTeam where contestId = '{contestId}' && operatorId = '{operatorId}';";
@@ -607,20 +618,51 @@ namespace Timkoto.UsersApi.Services
                         packagePoints += prize.Prize;
                     }
                 }
+                
+                var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent), 31000m) - packagePoints;
+                if (pointsToAdd > 0)
+                {
+                    foreach (var prize in contestPrizePool)
+                    {
+                        prize.Prize += decimal.Round((prize.Prize / packagePoints) * pointsToAdd,
+                            MidpointRounding.AwayFromZero);
+                    }
+
+                    packagePoints = 0m;
+
+                    foreach (var prize in contestPrizePool)
+                    {
+                        for (var i = prize.FromRank; i <= prize.ToRank; i++)
+                        {
+                            packagePoints += prize.Prize;
+                        }
+                    }
+                }
 
                 var expenses = (grossPoints * agentCommssionPercent) + packagePoints + operationsCost;
 
                 var netPoints = grossPoints - expenses;
-
-                if (netPoints > 1000)
+            
+                if (netPoints > 100)
                 {
                     var addPoints = netPoints * 0.1m;
                     foreach (var prize in contestPrizePool)
                     {
-                        prize.Prize += decimal.Round((prize.Prize / packagePoints) * addPoints, MidpointRounding.ToZero);
+                        prize.Prize += decimal.Round((prize.Prize / packagePoints) * addPoints, MidpointRounding.AwayFromZero);
                     }
                 }
             }
+
+            foreach (var prize in contestPrizePool)
+            {
+            
+                if (prize.Prize < 100)
+                {
+                    prize.Prize = 0m;
+                }
+            }
+
+            contestPrizePool = contestPrizePool.Where(_ => _.Prize > 0m).ToList();
 
             foreach (var prizePool in contestPrizePool)
             {
@@ -628,6 +670,8 @@ namespace Timkoto.UsersApi.Services
                     ? prizePool.FromRank.ToString()
                     : $"{prizePool.FromRank} - {prizePool.ToRank}";
             }
+
+            return contestPrizePool;
         }
 
         public async Task<GenericResponse> TeamRanks(long operatorId, List<string> messages)

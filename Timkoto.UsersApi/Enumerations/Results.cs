@@ -58,6 +58,8 @@
         NoTransactionFound,
         TimeZoneLookUpError,
         ContestPackageNotAssigned,
-        NoContestPackage
+        NoContestPackage,
+        ExceededSalary,
+        UserNameAvailable
     }
 }

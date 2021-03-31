@@ -37,7 +37,7 @@ namespace Timkoto.UsersApi.Services
 
             var existingUser = await _persistService.FindOne<User>(_ =>
                 _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
-            
+
             if (existingUser != null)
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserNameExists);
@@ -88,6 +88,30 @@ namespace Timkoto.UsersApi.Services
             }
 
             return genericResponse;
+        }
+
+        public async Task<GenericResponse> CheckUserName(AddUserRequest request, List<string> messages)
+        {
+            var registrationCode = await _persistService.FindOne<RegistrationCode>(_ => _.Code == request.RegistrationCode && _.IsActive);
+            if (registrationCode == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
+            }
+            if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
+            }
+
+            var existingUser = await _persistService.FindOne<User>(_ =>
+                _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
+
+            if (existingUser != null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserNameExists);
+            }
+
+            return GenericResponse.Create(true, HttpStatusCode.OK, Results.UserNameAvailable);
+
         }
     }
 }

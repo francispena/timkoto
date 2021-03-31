@@ -7,5 +7,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
     public interface IUserService
     {
         Task<GenericResponse> AddUser(AddUserRequest request, List<string> messages);
+
+        Task<GenericResponse> CheckUserName(AddUserRequest request, List<string> messages);
     }
 }

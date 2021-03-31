@@ -100,7 +100,7 @@ namespace Timkoto.Data.Services
                 dbSession.Close();
                 dbSession.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 retVal = false;
 
