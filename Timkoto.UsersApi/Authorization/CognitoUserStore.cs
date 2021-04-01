@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -103,6 +104,13 @@ namespace Timkoto.UsersApi.Authorization
 
             try
             {
+                var userDb = await _persistService.FindOne<User>(_ => _.Email == email);
+                if (userDb == null)
+                {
+                    return GenericResponse.Create(false, HttpStatusCode.Forbidden,
+                        Results.AuthenticationError);
+                }
+
                 var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
                 var user = new CognitoUser(email, _clientId, userPool, _providerClient);
 
@@ -115,25 +123,22 @@ namespace Timkoto.UsersApi.Authorization
 
                 if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
                 {
-                    var userDb = await _persistService.FindOne<User>(_ => _.Email == email);
-                    if (userDb == null)
-                    {
-                        genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden,
-                            Results.AuthenticationError);
-                    }
-                    else
-                    {
-                        genericResponse =
-                            GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
 
-                        genericResponse.Tag = authResponse.AuthenticationResult?.AccessToken;
+                    genericResponse =
+                        GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
 
-                        genericResponse.Data = new
-                        {
-                            authResponse.AuthenticationResult?.IdToken,
-                            User = userDb
-                        };
-                    }
+                    genericResponse.Jwt = new JWToken
+                    {
+                        AccessToken = authResponse.AuthenticationResult?.AccessToken,
+                        IdToken = authResponse.AuthenticationResult?.IdToken,
+                        RefreshToken = authResponse.AuthenticationResult?.RefreshToken
+                    };
+
+                    genericResponse.Data = new
+                    {
+                        authResponse.AuthenticationResult?.IdToken,
+                        User = userDb
+                    };
                 }
                 else
                 {
@@ -184,10 +189,101 @@ namespace Timkoto.UsersApi.Authorization
                     ? GenericResponse.Create(true, HttpStatusCode.OK, Results.ChangePasswordSucceeded)
                     : GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
             }
-            catch 
+            catch
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ChangePasswordFailed);
             }
+        }
+
+        public async Task<GenericResponse> RefreshToken(string jwToken, List<string> messages)
+        {
+            GenericResponse genericResponse = null;
+
+            try
+            {
+                var jwt = JsonConvert.DeserializeObject<JWToken>(jwToken);
+
+                if (jwt == null || string.IsNullOrWhiteSpace(jwt.IdToken) || string.IsNullOrWhiteSpace(jwt.AccessToken) || string.IsNullOrWhiteSpace(jwt.RefreshToken))
+                {
+                    throw new NotAuthorizedException("");
+                }
+
+                var jwts = jwt.IdToken.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                if (jwts.Length != 3)
+                {
+                    throw new NotAuthorizedException("");
+                }
+
+                var idTokenPayloadStringBase64String = Convert.FromBase64String($"{jwts[1]}=");
+                var decodedString = Encoding.UTF8.GetString(idTokenPayloadStringBase64String);
+
+                var idTokenPayload = JsonConvert.DeserializeObject<IdTokenPayload>(decodedString);
+                if (idTokenPayload == null)
+                {
+                    throw new NotAuthorizedException("");
+                }
+
+                var userDb = await _persistService.FindOne<User>(_ => _.Email == idTokenPayload.CognitoUsername);
+                if (userDb == null)
+                {
+                    return GenericResponse.Create(false, HttpStatusCode.Forbidden,
+                        Results.AuthenticationError);
+                }
+
+                var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
+                var user = new CognitoUser(idTokenPayload.CognitoUsername, _clientId, userPool, _providerClient);
+
+                var refreshRequest = new InitiateRefreshTokenAuthRequest()
+                {
+                    AuthFlowType = AuthFlowType.REFRESH_TOKEN_AUTH
+                };
+
+                var issueTime = DateTimeOffset.FromUnixTimeSeconds(idTokenPayload.iat).DateTime;
+                var expirationTime = DateTimeOffset.FromUnixTimeSeconds(idTokenPayload.exp).DateTime;
+
+                user.SessionTokens =
+                    new CognitoUserSession(jwt.IdToken, jwt.AccessToken, jwt.RefreshToken, issueTime, expirationTime);
+
+                var refreshResponse = await user.StartWithRefreshTokenAuthAsync(refreshRequest);
+
+                if (!string.IsNullOrWhiteSpace(refreshResponse?.AuthenticationResult?.IdToken))
+                {
+                    genericResponse =
+                        GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
+
+                    genericResponse.Jwt = new JWToken
+                    {
+                        AccessToken = refreshResponse.AuthenticationResult?.AccessToken,
+                        IdToken = refreshResponse.AuthenticationResult?.IdToken,
+                        RefreshToken = refreshResponse.AuthenticationResult?.RefreshToken
+                    };
+
+                    genericResponse.Data = new
+                    {
+                        refreshResponse.AuthenticationResult?.IdToken,
+                        User = userDb
+                    };
+                }
+                else
+                {
+                    genericResponse =
+                        GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+                }
+            }
+            catch (NotAuthorizedException)
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationFailed);
+            }
+            catch (Exception ex)
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationError);
+                genericResponse.ExceptionMessage = ex.Message;
+                genericResponse.ExceptionStackTrace = ex.StackTrace;
+            }
+
+            return genericResponse;
         }
     }
 }

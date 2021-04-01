@@ -73,16 +73,18 @@ namespace Timkoto.UsersApi.Controllers
 
                 if (authenticationResult.IsSuccess)
                 {
-                    Response.Cookies.Append("HttpOnlyAccessToken", authenticationResult.Tag, new CookieOptions
+                    Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                    Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(authenticationResult.Jwt), new CookieOptions
                     {
                         Path = "/",
                         HttpOnly = true,
                         IsEssential = true,
                         Expires = DateTime.Now.AddMonths(1),
-                        Secure = true
+                        Secure = true,
+                        Domain = "timkoto.com"
                     });
 
-                    authenticationResult.Tag = null;
+                    //authenticationResult.Jwt = null;
 
                     return Ok(authenticationResult);
                 }
@@ -201,5 +203,61 @@ namespace Timkoto.UsersApi.Controllers
                 _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
             }
         }
+
+        [Route("refreshToken")]
+        [HttpPost]
+        public async Task<IActionResult> RefreshToken()
+        {
+            var messages = new List<string> { "UserController.RefreshToken" };
+
+            try
+            {
+                var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+
+                if (string.IsNullOrWhiteSpace(httpOnlyAccessToken))
+                {
+                    return StatusCode(403, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.NoTokenFound));
+                }
+                
+                var jwt = JsonConvert.DeserializeObject<JWToken>(httpOnlyAccessToken);
+
+                if (jwt == null)
+                {
+                    return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
+                }
+
+                var refreshTokenResult = await _cognitoUserStore.RefreshToken(httpOnlyAccessToken, messages);
+
+                if (refreshTokenResult.IsSuccess)
+                {
+                    Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(refreshTokenResult.Jwt), new CookieOptions
+                    {
+                        Path = "/",
+                        HttpOnly = false,
+                        IsEssential = true,
+                        Expires = DateTime.Now.AddMonths(1),
+                        Secure = true
+                    });
+
+                    //refreshTokenResult.Jwt = null;
+
+                    return Ok(refreshTokenResult);
+                }
+                else
+                {
+                    return StatusCode(403, refreshTokenResult);
+                }
+            }
+            catch (Exception ex)
+            {
+                var result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+            }
+        }
+
     }
 }

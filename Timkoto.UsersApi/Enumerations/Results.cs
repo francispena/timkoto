@@ -61,6 +61,7 @@
         NoContestPackage,
         ExceededSalary,
         UserNameAvailable,
-        Unauthorized
+        Unauthorized,
+        NoTokenFound
     }
 }

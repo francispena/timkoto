@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.BaseClasses;
 using Timkoto.UsersApi.Enumerations;
@@ -37,16 +38,24 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                if (_appConfig.IsProduction)
-                {
-                    var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
-                    var verified = await _verifier.VerifyAccessToken(request.UserId, httpOnlyAccessToken);
-                    if (!verified)
-                    {
-                        return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
-                    }
-                }
-                
+                //if (_appConfig.IsProduction)
+                //{
+                //    var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+
+                //    var jwt = JsonConvert.DeserializeObject<JWToken>(httpOnlyAccessToken);
+
+                //    if (jwt == null)
+                //    {
+                //        return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
+                //    }
+
+                //    var verified = await _verifier.VerifyAccessToken(request.UserId, jwt.AccessToken);
+                //    if (!verified)
+                //    {
+                //        return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
+                //    }
+                //}
+
                 result = await _transactionService.AddTransaction(request, true, messages);
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);

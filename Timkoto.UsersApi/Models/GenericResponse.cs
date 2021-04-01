@@ -20,7 +20,7 @@ namespace Timkoto.UsersApi.Models
 
         public dynamic Data { get; set; }
 
-        public string Tag { get; set; }
+        public JWToken Jwt { get; set; }
 
         public static GenericResponse Create(bool isSuccess, HttpStatusCode statusCode,
             Results result)
@@ -159,6 +159,8 @@ namespace Timkoto.UsersApi.Models
                     return "Username is available.";
                 case Results.Unauthorized:
                     return "Unauthorized to make this request.";
+                case Results.NoTokenFound:
+                    return "No token found.";
             }
 
             return "";
