@@ -51,6 +51,10 @@ namespace Timkoto.Data.Repositories
             Index = "passwordResetCode_ix")]
         public virtual string PasswordResetCode { get; set; }
 
+        [Property(Name = "AccessToken", Column = "accessToken", TypeType = typeof(string), 
+            Index = "accessToken_ix")]
+        public virtual string AccessToken { get; set; }
+
         [Property(Name = "CreateDateTime", Column = "createDateTime", TypeType = typeof(DateTime), 
             Generated = PropertyGeneration.Insert, Index = "createDateTime_ix")]
         public virtual DateTime CreateDateTime { get; set; }

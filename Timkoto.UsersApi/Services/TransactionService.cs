@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using NHibernate.Util;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Authorization.Interfaces;
+using Timkoto.UsersApi.BaseClasses;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -26,9 +26,11 @@ namespace Timkoto.UsersApi.Services
             var lastTransaction = await
                 _persistService.FindLast<Transaction>(_ => _.UserId == request.UserId, _ => _.CreateDateTime);
 
+            var tag = "";
             if (request.TransactionType.ToString().Contains("Credit"))
             {
                 request.Amount = Math.Abs(request.Amount) * -1;
+                tag = "Claimed";
             }
             else if (request.TransactionType.ToString().Contains("Debit"))
             {
@@ -48,7 +50,8 @@ namespace Timkoto.UsersApi.Services
                 UserType = request.UserType,
                 TransactionType = request.TransactionType,
                 UserId = request.UserId,
-                Balance = lastTransaction?.Balance + request.Amount ?? request.Amount
+                Balance = lastTransaction?.Balance + request.Amount ?? request.Amount,
+                Tag = tag
             };
 
             var user = await _persistService.FindOne<User>(_ => _.Id == request.UserId);

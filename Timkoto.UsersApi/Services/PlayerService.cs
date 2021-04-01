@@ -101,7 +101,7 @@ namespace Timkoto.UsersApi.Services
             var genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.TeamsFound);
 
-            genericResponse.Data = new { PlayerTeams = playerTeams.OrderBy(_ => _.TeamName).ToList() };
+            genericResponse.Data = new { PlayerTeams = playerTeams.Where(_ => _.TeamRank <= 100).OrderBy(_ => _.TeamName).ToList() };
 
             return genericResponse;
         }

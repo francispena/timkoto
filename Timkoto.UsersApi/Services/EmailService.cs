@@ -29,7 +29,7 @@ namespace Timkoto.UsersApi.Services
             const int port = 587;
             const string subject = "Registration Link";
 
-            var body = "<p>Dear Ma'am/Sir</p>" +
+            var body = "<p>Dear Ma'am/Sir,</p>" +
                        "<br>" +
                        "<p>Thank you for your interest in our service.</p>" +
                        "<p>To proceed with your registration, please click on the link below.</p>" +
@@ -42,7 +42,7 @@ namespace Timkoto.UsersApi.Services
                        "<p>Thank you.</p>" +
                        "<p>Your Team!!!</p>" +
                        "<br>" +
-                       "<p>This is a system - generated email.No signature is required.</p>";
+                       "<p>This is a system - generated email. No signature is required.</p>";
 
             var message = new MailMessage { IsBodyHtml = true, From = new MailAddress(from, fromName) };
             message.To.Add(new MailAddress(to));
@@ -80,7 +80,7 @@ namespace Timkoto.UsersApi.Services
             const int port = 587;
             const string subject = "Password Reset";
 
-            var body = $"<p>Dear {user.UserName}</p>" +
+            var body = $"<p>Dear {user.UserName},</p>" +
                        "<br>" +
                        "<p>A request has been received to reset the password for your Timkoto account.</p>" +
                        "<p>Please enter the code below in the password reset page.</p>" +
@@ -91,7 +91,7 @@ namespace Timkoto.UsersApi.Services
                        "<br>" +
                        "<p>Your Team!!!</p>" +
                        "<br>" +
-                       "<p>This is a system - generated email.No signature is required.</p>";
+                       "<p>This is a system - generated email. No signature is required.</p>";
 
             var message = new MailMessage { IsBodyHtml = true, From = new MailAddress(from, fromName) };
             message.To.Add(new MailAddress(to));

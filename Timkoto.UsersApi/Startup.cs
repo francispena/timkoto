@@ -16,6 +16,7 @@ using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization;
 using Timkoto.UsersApi.Authorization.Interfaces;
+using Timkoto.UsersApi.BaseClasses;
 using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
@@ -36,7 +37,7 @@ namespace Timkoto.UsersApi
         {
             var environment = Environment.GetEnvironmentVariable("Environment") ?? "Development";
             _isProd = environment == "Production";
-
+            
             Configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -99,7 +100,6 @@ namespace Timkoto.UsersApi
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<IRegistrationCodeService, RegistrationCodeService>();
             services.AddTransient<IAgentService, AgentService>();
-            services.AddTransient<ITransactionService, TransactionService>();
             services.AddTransient<IPlayerService, PlayerService>();
             services.AddTransient<IHttpService, HttpService>();
             services.AddTransient<ICognitoUserStore, CognitoUserStore>();
@@ -107,6 +107,10 @@ namespace Timkoto.UsersApi
             services.AddTransient<IContestService, ContestService>();
             services.AddTransient<IRapidNbaStatistics, RapidNbaStatistics>();
             services.AddTransient<IEmailService, EmailService>();
+            services.AddTransient<ITransactionService, TransactionService>();
+            services.AddSingleton<IAppConfig>(_ => new AppConfig(_isProd));
+            services.AddTransient<IVerifier, Verifier>();
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
@@ -129,7 +133,7 @@ namespace Timkoto.UsersApi
                 _.SwaggerEndpoint($"{swaggerJsonBasePath}/swagger/v1/swagger.json", "TimKoTo API V1");
             });
 
-            var origins = _isProd ? "*" : "*";
+            var origins = _isProd ? "timkoto.com,www.timkoto.com" : "*";
 
             app.UseCors(_ => _.WithOrigins(origins)
                 .AllowAnyMethod()

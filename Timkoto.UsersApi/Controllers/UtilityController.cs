@@ -271,7 +271,8 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     today.ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd"),
                     today.ToUniversalTime().ToString("yyyy-MM-dd"),
-                    today.ToUniversalTime().AddDays(1).ToString("yyyy-MM-dd")
+                    today.ToUniversalTime().AddDays(1).ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().AddDays(2).ToString("yyyy-MM-dd")
                 };
 
                 var games = new List<RapidApiGamesGame>();
@@ -474,11 +475,13 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
+                var utcDate = DateTime.UtcNow;
+
                 var gameDates = new[]
                 {
-                    DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd"),
-                    DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd")
+                    utcDate.AddDays(-1).ToString("yyyy-MM-dd"),
+                    utcDate.ToString("yyyy-MM-dd"),
+                    utcDate.AddDays(1).ToString("yyyy-MM-dd")
                 };
 
                 TimeZoneInfo easternZone = null;
@@ -498,7 +501,7 @@ namespace Timkoto.UsersApi.Controllers
                     return StatusCode(403, genericResponse);
                 }
 
-                var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
+                var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
                 var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
 
                 var games = new List<RapidApiGamesGame>();
@@ -542,9 +545,9 @@ namespace Timkoto.UsersApi.Controllers
                 }
 
                 var sqlUpdateGame =
-                    string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
+                    string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE ((`hTeamId` = '{_.HTeamId}' or `vTeamId` = '{_.VTeamId}') and `contestId` = '{_.ContestId}')"));
 
-                var sqlUpdateGamePlayer = string.Join(";", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
+                var sqlUpdateGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
 
                 tx = dbSession.BeginTransaction();
 
@@ -591,7 +594,7 @@ namespace Timkoto.UsersApi.Controllers
         {
  
             //return Ok();
-            var contestId = 3;
+            var contestId = 1;
             var messages = new List<string>();
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 

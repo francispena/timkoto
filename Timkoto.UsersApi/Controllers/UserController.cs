@@ -43,9 +43,6 @@ namespace Timkoto.UsersApi.Controllers
             var messages = new List<string> { "UserController.AddUser", $"request - {JsonConvert.SerializeObject(request)}"};
             GenericResponse result;
             
-            //validate token against DB
-            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
-
             try
             {
                 result = await _userService.AddUser(request, messages);

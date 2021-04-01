@@ -60,6 +60,7 @@
         ContestPackageNotAssigned,
         NoContestPackage,
         ExceededSalary,
-        UserNameAvailable
+        UserNameAvailable,
+        Unauthorized
     }
 }

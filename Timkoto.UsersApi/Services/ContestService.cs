@@ -174,7 +174,7 @@ namespace Timkoto.UsersApi.Services
                 TeamName = request.LineUpTeam.TeamName,
                 LineupHash = hash,
                 Amount = contestPackage.EntryPoints,
-                AgentCommission = contestPackage.EntryPoints * 0.05m
+                AgentCommission = contestPackage.EntryPoints * 0.07m
             };
 
             var dbSession = _persistService.GetSession();
@@ -694,7 +694,7 @@ namespace Timkoto.UsersApi.Services
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.ContestTeamFound);
             genericResponse.Data = new
             {
-                TeamRankPrizes = teamRankPrizes.OrderBy(_ => _.TeamRank)
+                TeamRankPrizes = teamRankPrizes.Where(_ => _.TeamRank <= 100).OrderBy(_ => _.TeamRank)
             };
 
             return genericResponse;

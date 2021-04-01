@@ -157,6 +157,8 @@ namespace Timkoto.UsersApi.Models
                     return "Players' total salary exceeded the salary cap.";
                 case Results.UserNameAvailable:
                     return "Username is available.";
+                case Results.Unauthorized:
+                    return "Unauthorized to make this request.";
             }
 
             return "";
