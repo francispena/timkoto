@@ -303,5 +303,6 @@ namespace Timkoto.UsersApi.Controllers
                 _logger.Log(member, messages, logType);
             }
         }
+        
     }
 }

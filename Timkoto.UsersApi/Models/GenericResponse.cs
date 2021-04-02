@@ -161,6 +161,10 @@ namespace Timkoto.UsersApi.Models
                     return "Unauthorized to make this request.";
                 case Results.NoTokenFound:
                     return "No token found.";
+                case Results.UserInfoUpdated:
+                    return "User information updated.";
+                case Results.UserInfoUpdateFailed:
+                    return "User information failed, please contact your agent.";
             }
 
             return "";

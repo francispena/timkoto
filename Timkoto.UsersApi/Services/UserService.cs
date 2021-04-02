@@ -117,5 +117,29 @@ namespace Timkoto.UsersApi.Services
             return GenericResponse.Create(true, HttpStatusCode.OK, Results.UserNameAvailable);
 
         }
+
+        public async Task<GenericResponse> UpdateUser(UpdateUserRequest request, List<string> messages)
+        {
+            var existingUser = await _persistService.FindOne<User>(_ => _.Id == request.Id);
+
+            if (existingUser == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidUserId);
+            }
+
+            var phoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber)
+                ? request.PhoneNumber.Replace("(", "").Replace(")", "").Replace("-", "")
+                : null;
+
+            existingUser.PhoneNumber = phoneNumber;
+            existingUser.UserName = request.UserName;
+
+            var result = await _persistService.Update(existingUser);
+            var genericResponse = result
+                ? GenericResponse.Create(true, HttpStatusCode.OK, Results.UserInfoUpdated)
+                : GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserInfoUpdateFailed);
+            
+            return genericResponse;
+        }
     }
 }

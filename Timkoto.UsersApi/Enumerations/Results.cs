@@ -62,6 +62,8 @@
         ExceededSalary,
         UserNameAvailable,
         Unauthorized,
-        NoTokenFound
+        NoTokenFound,
+        UserInfoUpdated,
+        UserInfoUpdateFailed
     }
 }

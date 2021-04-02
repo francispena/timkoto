@@ -24,11 +24,14 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly string _className = "RegistrationCodeController";
 
-        public RegistrationCodeController(IRegistrationCodeService registrationCodeService, IEmailService emailService, ILogger logger)
+        private readonly IUserService _userService;
+
+        public RegistrationCodeController(IRegistrationCodeService registrationCodeService, IEmailService emailService, IUserService  userService,ILogger logger)
         {
             _registrationCodeService = registrationCodeService;
             _emailService = emailService;
             _logger = logger;
+            _userService = userService;
         }
 
         [Route("{id}")]
@@ -95,6 +98,38 @@ namespace Timkoto.UsersApi.Controllers
 
                 retVal = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, retVal);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
+
+        [Route("updateUser")]
+        [HttpPost]
+        public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request)
+        {
+            var member = $"{_className}.UpdateUser";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
+
+            GenericResponse result;
+
+            try
+            {
+                result = await _userService.UpdateUser(request, messages);
+                messages.AddWithTimeStamp($"_userService.UpdateUser - {JsonConvert.SerializeObject(result)}");
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
             }
             finally
             {
