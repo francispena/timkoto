@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Timkoto.UsersApi.Authorization.Interfaces;
-using Timkoto.UsersApi.BaseClasses;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
+using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -18,39 +18,45 @@ namespace Timkoto.UsersApi.Controllers
     {
         private readonly IContestService  _contestService;
 
-        private readonly IAppConfig _appConfig;
+        private readonly ILogger _logger;
 
-        private readonly IVerifier _verifier;
+        private readonly string _className = "ContestController";
 
-        public ContestController(IContestService contestService, IAppConfig appConfig, IVerifier verifier)
+        public ContestController(IContestService contestService, ILogger logger)
         {
             _contestService = contestService;
-            _appConfig = appConfig;
-            _verifier = verifier;
+            _logger = logger;
         }
 
         [Route("Teams/{contestId}")]
         [HttpGet]
         public async Task<IActionResult> GetGames([FromRoute] long contestId)
         {
+            var member = $"{_className}.GetGames";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - contestId:{contestId}");
+
             GenericResponse result;
 
             try
             {
                 result = await _contestService.GetGames(contestId, messages);
+                messages.AddWithTimeStamp($"_contestService.GetGames - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -58,67 +64,63 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPlayers([FromRoute] long contestId)
         {
+            var member = $"{_className}.GetPlayers";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - contestId:{contestId}");
+
             GenericResponse result;
 
             try
             {
                 result = await _contestService.GetPlayers(contestId, messages);
+                messages.AddWithTimeStamp($"_contestService.GetPlayers - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
         [Route("LineUp")]
         [HttpPost]
-        public async Task<IActionResult> SumbitLineUp([FromBody] LineUpRequest request)
+        public async Task<IActionResult> SubmitLineUp([FromBody] LineUpRequest request)
         {
+            var member = $"{_className}.SubmitLineUp";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
+
             GenericResponse result;
 
             try
             {
-                //if (_appConfig.IsProduction)
-                //{
-                //    var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
-
-                //    var jwt = JsonConvert.DeserializeObject<JWToken>(httpOnlyAccessToken);
-
-                //    if (jwt == null)
-                //    {
-                //        return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
-                //    }
-
-                //    var verified = await _verifier.VerifyAccessToken(request.LineUpTeam.UserId, jwt.AccessToken);
-                //    if (!verified)
-                //    {
-                //        return StatusCode(401, GenericResponse.Create(false, HttpStatusCode.Unauthorized, Results.Unauthorized));
-                //    }
-                //}
-
                 result = await _contestService.SubmitLineUp(request, messages);
+                messages.AddWithTimeStamp($"_contestService.SubmitLineUp - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -126,24 +128,31 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPrizePool([FromRoute] long operatorId)
         {
+            var member = $"{_className}.GetPrizePool";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}");
+
             GenericResponse result;
 
             try
             {
                 result = await _contestService.PrizePool(operatorId, messages);
+                messages.AddWithTimeStamp($"_contestService.PrizePool - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -151,24 +160,31 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetTeamRanks([FromRoute] long operatorId)
         {
+            var member = $"{_className}.GetTeamRanks";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}");
+
             GenericResponse result;
 
             try
             {
                 result = await _contestService.TeamRanks(operatorId, messages);
+                messages.AddWithTimeStamp($"_contestService.TeamRanks - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -176,24 +192,31 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> TeamHistoryRanks([FromRoute] long operatorId, string gameDate)
         {
+            var member = $"{_className}.TeamHistoryRanks";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}/gameDate:{gameDate}");
+
             GenericResponse result;
 
             try
             {
                 result = await _contestService.TeamHistoryRanks(operatorId, gameDate , messages);
+                messages.AddWithTimeStamp($"_contestService.TeamHistoryRanks - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
     }

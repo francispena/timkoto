@@ -1,10 +1,10 @@
 ﻿using NHibernate;
+using NHibernate.Transform;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using NHibernate.Transform;
 using Timkoto.Data.Services.Interfaces;
 
 namespace Timkoto.Data.Services
@@ -49,7 +49,7 @@ namespace Timkoto.Data.Services
 
                 if (result != null)
                 {
-                    retVal = long.Parse(result.ToString());
+                    retVal = long.Parse(result.ToString() ?? "0");
                 }
 
                 dbSession.Close();
@@ -69,10 +69,8 @@ namespace Timkoto.Data.Services
                 }
                 else
                 {
-                    retVal = -1001;
+                    throw;
                 }
-                //await _logger.LogAsync("Error PersistService.Save", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
             }
 
             return retVal;
@@ -86,7 +84,6 @@ namespace Timkoto.Data.Services
         /// <returns></returns>
         public async Task<bool> Update<T>(T data)
         {
-            bool retVal;
             ITransaction tx = null;
             try
             {
@@ -95,25 +92,21 @@ namespace Timkoto.Data.Services
 
                 await dbSession.UpdateAsync(data);
                 await tx.CommitAsync();
-                retVal = true;
 
                 dbSession.Close();
                 dbSession.Dispose();
             }
-            catch (Exception ex)
+            catch 
             {
-                retVal = false;
-
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
 
-                //await _logger.LogAsync("Error PersistService.Update", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
+                throw;
             }
 
-            return retVal;
+            return true;
         }
 
         /// <summary>
@@ -124,7 +117,6 @@ namespace Timkoto.Data.Services
         /// <returns></returns>
         public async Task<bool> Delete<T>(T data)
         {
-            bool retVal;
             ITransaction tx = null;
             try
             {
@@ -133,25 +125,21 @@ namespace Timkoto.Data.Services
 
                 await dbSession.DeleteAsync(data);
                 await tx.CommitAsync();
-                retVal = true;
 
                 dbSession.Close();
                 dbSession.Dispose();
             }
             catch (Exception)
             {
-                retVal = false;
-
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
 
-                //await _logger.LogAsync("Error PersistService.Delete", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
+                throw;
             }
 
-            return retVal;
+            return true;
         }
 
         /// <summary>
@@ -202,9 +190,7 @@ namespace Timkoto.Data.Services
 
         public async Task<bool> BatchSave<T>(List<T> data)
         {
-            var retVal = false;
             ITransaction tx = null;
-
             try
             {
                 var dbSession = _sessionFactory.OpenSession();
@@ -233,24 +219,20 @@ namespace Timkoto.Data.Services
 
                 return true;
             }
-            catch (Exception ex)
+            catch 
             {
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
-                //await _logger.LogAsync("Error PersistService.Save", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
-            }
 
-            return retVal;
+                throw;
+            }
         }
 
         public async Task<bool> ExecuteSql(string sqlStatement)
         {
-            var retVal = false;
             ITransaction tx = null;
-
             try
             {
                 var dbSession = _sessionFactory.OpenSession();
@@ -265,17 +247,15 @@ namespace Timkoto.Data.Services
 
                 return true;
             }
-            catch (Exception ex)
+            catch 
             {
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
-                //await _logger.LogAsync("Error PersistService.Save", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
-            }
 
-            return retVal;
+                throw;
+            }
         }
 
         public async Task<List<T>> SqlQuery<T>(string sqlStatement)
@@ -298,17 +278,15 @@ namespace Timkoto.Data.Services
 
                 return retVal;
             }
-            catch (Exception ex)
+            catch
             {
                 if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
-                //await _logger.LogAsync("Error PersistService.Save", ex, null,
-                //    new Dictionary<string, object> { { "data", data } });
-            }
 
-            return default;
+                throw;
+            }
         }
 
         public ISession GetSession()

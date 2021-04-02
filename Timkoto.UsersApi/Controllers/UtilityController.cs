@@ -12,6 +12,7 @@ using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -34,9 +35,13 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly ICognitoUserStore _cognitoUserStore;
 
+        private readonly ILogger _logger;
+
+        private readonly string _className = "UtilityController";
+
         public UtilityController(IHttpService httpService, IPersistService persistService,
             IRapidNbaStatistics rapidNbaStatistics, IContestService contestService,
-            ITransactionService transactionService, ICognitoUserStore cognitoUserStore)
+            ITransactionService transactionService, ICognitoUserStore cognitoUserStore, ILogger logger)
         {
             _httpService = httpService;
             _persistService = persistService;
@@ -44,13 +49,17 @@ namespace Timkoto.UsersApi.Controllers
             _contestService = contestService;
             _transactionService = transactionService;
             _cognitoUserStore = cognitoUserStore;
+            _logger = logger;
         }
 
         [Route("CheckHealth")]
         [HttpGet]
         public async Task<IActionResult> CheckHealth()
         {
-            var messages = new List<string> { "HealthController.CheckHealth" };
+            var member = $"{_className}.CheckHealth";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
             try
             {
@@ -78,7 +87,7 @@ namespace Timkoto.UsersApi.Controllers
             }
             finally
             {
-               // _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -86,8 +95,13 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetTeams()
         {
-            return Ok(true);
+            var member = $"{_className}.GetTeams";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            return Ok(true);
+            
             GenericResponse result;
 
             try
@@ -138,8 +152,12 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPlayers()
         {
-            //return Ok(true);
+            var member = $"{_className}.GetPlayers";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            return Ok(true);
             GenericResponse result;
 
             try
@@ -228,7 +246,10 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> CreateContest()
         {
+            var member = $"{_className}.CreateContest";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
             ITransaction tx = null;
 
@@ -393,14 +414,17 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     await tx.RollbackAsync();
                 }
-
+                
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+                
                 var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -417,58 +441,166 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetLiveStats()
         {
-            var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
+            var member = $"{_className}.GetLiveStats";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+            
+            try
+            {
+                var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
+                messages.AddWithTimeStamp($"_rapidNbaStatistics.GetLiveStats - {JsonConvert.SerializeObject(result)}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
-            return Ok(result);
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
         }
 
         [Route("GetFinalStats")]
         [HttpGet]
         public async Task<IActionResult> GetFinalStats()
         {
-            var result = await _rapidNbaStatistics.GetFinalStats(new List<string>());
+            var member = $"{_className}.GetFinalStats";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
-            return Ok(result);
+            try
+            {
+                var result = await _rapidNbaStatistics.GetFinalStats(new List<string>());
+                messages.AddWithTimeStamp($"_rapidNbaStatistics.GetFinalStats - {JsonConvert.SerializeObject(result)}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
         }
 
         [Route("RankTeams")]
         [HttpGet]
         public async Task<IActionResult> RankTeams()
         {
-            var result = await _contestService.RankTeams(new List<string>());
+            var member = $"{_className}.RankTeams";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
-            return Ok(result);
+            try
+            {
+                var result = await _contestService.RankTeams(new List<string>());
+                messages.AddWithTimeStamp($"_contestService.RankTeams - {JsonConvert.SerializeObject(result)}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
         }
 
         [Route("SetPrizes")]
         [HttpGet]
         public async Task<IActionResult> SetPrizes()
         {
-            var result = await _contestService.SetPrizes(new List<string>());
+            var member = $"{_className}.SetPrizes";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
-            return Ok(result);
+            try
+            {
+                var result = await _contestService.SetPrizes(new List<string>());
+                messages.AddWithTimeStamp($"_contestService.SetPrizes - {JsonConvert.SerializeObject(result)}");
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
         }
 
         [Route("SetPrizesInTransaction")]
         [HttpGet]
         public async Task<IActionResult> SetPrizesInTransaction()
         {
-            var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
+            var member = $"{_className}.Post";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
-            var createContestResult = await CreateContest();
-
-            return Ok(new
+            try
             {
-                setPrizesInTransactionResult,
-                createContestResult
-            });
+                var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
+                messages.AddWithTimeStamp($"_contestService.SetPrizesInTransaction - {JsonConvert.SerializeObject(setPrizesInTransactionResult)}");
+                var createContestResult = await CreateContest();
+
+                return Ok(new
+                {
+                    setPrizesInTransactionResult,
+                    createContestResult
+                });
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
         }
 
         [Route("UpdateGameIds")]
         [HttpGet]
         public async Task<IActionResult> UpdateGameIds()
         {
+            var member = $"{_className}.UpdateGameIds";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
             ITransaction tx = null;
             var dbSession = _persistService.GetSession();
@@ -568,6 +700,10 @@ namespace Timkoto.UsersApi.Controllers
                     dbSession.Close();
                     dbSession.Dispose();
                 }
+                
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
 
                 var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
@@ -575,27 +711,21 @@ namespace Timkoto.UsersApi.Controllers
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
-
-        //[Route("BroadcastRanks")]
-        //[HttpPost]
-        //public async Task<IActionResult> BroadcastRanks()
-        //{
-        //    await _contestService.BroadcastRanks(new List<string>());
-
-        //    return Ok();
-        //}
 
         [Route("TestService/{start}/{count}")]
         [HttpGet]
         public async Task<IActionResult> TestService([FromRoute] int start, [FromRoute] int count)
         {
- 
+            var member = $"{_className}.TestService";
+            var messages = new List<string>();
+            messages.AddWithTimeStamp($"{member}");
+
             //return Ok();
             var contestId = 2;
-            var messages = new List<string>();
+            
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 
             var sqlQuery =

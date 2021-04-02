@@ -12,6 +12,7 @@ using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Models;
 using ChangePasswordRequest = Timkoto.UsersApi.Models.ChangePasswordRequest;
 
@@ -100,6 +101,7 @@ namespace Timkoto.UsersApi.Authorization
 
         public async Task<GenericResponse> AuthenticateAsync(string email, string password, List<string> messages)
         {
+            messages.AddWithTimeStamp("CognitoUserStore.AuthenticateAsync");
             GenericResponse genericResponse;
 
             try
@@ -110,7 +112,7 @@ namespace Timkoto.UsersApi.Authorization
                     return GenericResponse.Create(false, HttpStatusCode.Forbidden,
                         Results.AuthenticationError);
                 }
-
+                
                 var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
                 var user = new CognitoUser(email, _clientId, userPool, _providerClient);
 
@@ -121,18 +123,19 @@ namespace Timkoto.UsersApi.Authorization
 
                 var authResponse = await user.StartWithSrpAuthAsync(authRequest).ConfigureAwait(false);
 
+                messages.AddWithTimeStamp($"authResponse - {JsonConvert.SerializeObject(authResponse.AuthenticationResult)}" );
+
                 if (!string.IsNullOrWhiteSpace(authResponse?.AuthenticationResult?.IdToken))
                 {
-
                     genericResponse =
                         GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
 
-                    genericResponse.Jwt = new JWToken
-                    {
-                        AccessToken = authResponse.AuthenticationResult?.AccessToken,
-                        IdToken = authResponse.AuthenticationResult?.IdToken,
-                        RefreshToken = authResponse.AuthenticationResult?.RefreshToken
-                    };
+                    //genericResponse.Jwt = new JWToken
+                    //{
+                    //    AccessToken = authResponse.AuthenticationResult?.AccessToken,
+                    //    IdToken = authResponse.AuthenticationResult?.IdToken,
+                    //    RefreshToken = authResponse.AuthenticationResult?.RefreshToken
+                    //};
 
                     genericResponse.Data = new
                     {
@@ -153,6 +156,8 @@ namespace Timkoto.UsersApi.Authorization
             }
             catch (Exception ex)
             {
+                messages.AddWithTimeStamp($"CognitoUserStore.AuthenticateAsync exception - {JsonConvert.SerializeObject(ex)}");
+
                 genericResponse =
                     GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AuthenticationError);
                 genericResponse.ExceptionMessage = ex.Message;

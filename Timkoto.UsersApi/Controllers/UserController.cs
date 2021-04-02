@@ -1,5 +1,4 @@
-﻿using Amazon.Lambda.Core;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System;
@@ -8,6 +7,8 @@ using System.Net;
 using System.Threading.Tasks;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
+using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -25,38 +26,48 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly IEmailService _emailService;
 
-        private readonly ILambdaContext _lambdaContext;
+        private readonly ILogger _logger;
+
+        private readonly string _className = "UserController";
 
         public UserController(IUserService userService, ICognitoUserStore cognitoUserStore,
-            IRegistrationCodeService registrationCodeService, IEmailService emailService)
+            IRegistrationCodeService registrationCodeService, IEmailService emailService, ILogger logger)
         {
             _userService = userService;
             _cognitoUserStore = cognitoUserStore;
-            _lambdaContext = Startup.LambdaContext;
             _registrationCodeService = registrationCodeService;
             _emailService = emailService;
+            _logger = logger;
         }
 
         [HttpPost]
         public async Task<IActionResult> AddUser([FromBody] AddUserRequest request)
         {
-            var messages = new List<string> { "UserController.AddUser", $"request - {JsonConvert.SerializeObject(request)}"};
+            var member = $"{_className}.AddUser";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
+            
             GenericResponse result;
             
             try
             {
                 result = await _userService.AddUser(request, messages);
+                messages.AddWithTimeStamp($"_userService.AddUser - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+                
                 result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -64,25 +75,29 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> Authenticate([FromBody] AuthenticateRequest request)
         {
-            var messages = new List<string> { "UserController.Authenticate", $"request - {JsonConvert.SerializeObject(request)}" };
+            var member = $"{_className}.Authenticate";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
 
             try
             {
                 var authenticationResult =
                     await _cognitoUserStore.AuthenticateAsync(request.Email, request.Password, messages);
+                messages.AddWithTimeStamp($"_cognitoUserStore.AuthenticateAsync - {JsonConvert.SerializeObject(authenticationResult)}");
 
                 if (authenticationResult.IsSuccess)
                 {
-                    Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-                    Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(authenticationResult.Jwt), new CookieOptions
-                    {
-                        Path = "/",
-                        HttpOnly = true,
-                        IsEssential = true,
-                        Expires = DateTime.Now.AddMonths(1),
-                        Secure = true,
-                        Domain = "timkoto.com"
-                    });
+                    //Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                    //Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(authenticationResult.Jwt), new CookieOptions
+                    //{
+                    //    Path = "/",
+                    //    HttpOnly = true,
+                    //    IsEssential = true,
+                    //    Expires = DateTime.Now.AddMonths(1),
+                    //    Secure = true,
+                    //    Domain = "timkoto.com"
+                    //});
 
                     //authenticationResult.Jwt = null;
 
@@ -95,13 +110,15 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
-                var result = GenericResponse.CreateErrorResponse(ex);
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
+                var result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -109,11 +126,15 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
-            var messages = new List<string> { "UserController.ChangePassword", $"request - {JsonConvert.SerializeObject(request)}" };
+            var member = $"{_className}.ChangePassword";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
 
             try
             {
                 var changePasswordResult = await _cognitoUserStore.ChangePasswordAsync(request, messages);
+                messages.AddWithTimeStamp($"_cognitoUserStore.ChangePasswordAsync - {JsonConvert.SerializeObject(changePasswordResult)}");
 
                 if (changePasswordResult.IsSuccess)
                 {
@@ -126,12 +147,15 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
                 var result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -139,7 +163,11 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> SendPasswordResetEmail([FromBody] PasswordResetRequest request)
         {
+            var member = $"{_className}.SendPasswordResetEmail";
             var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
+
             GenericResponse retVal;
 
             try
@@ -147,7 +175,10 @@ namespace Timkoto.UsersApi.Controllers
                 var user = await _registrationCodeService.GenerateResetPasswordCode(request.EmailAddress, messages);
                 if (user != null)
                 {
+                    messages.AddWithTimeStamp($"_registrationCodeService.GenerateResetPasswordCode - {JsonConvert.SerializeObject(user)}");
                     var result = await _emailService.SendPasswordResetCode(user, messages);
+                    messages.AddWithTimeStamp($"_emailService.SendPasswordResetCode - {JsonConvert.SerializeObject(result)}");
+
                     if (result)
                     {
                         retVal = GenericResponse.Create(true, HttpStatusCode.OK, Results.EmailSent);
@@ -167,13 +198,16 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
                 retVal = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, retVal);
             }
             finally
             {
-                //TODO: logging
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -181,26 +215,31 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CheckUserName([FromBody] AddUserRequest request)
         {
-            var messages = new List<string> { "UserController.checkUserName", $"request - {JsonConvert.SerializeObject(request)}" };
-            GenericResponse result;
+            var member = $"{_className}.CheckUserName";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
 
-            //validate token against DB
-            var httpOnlyAccessToken = Request.Cookies["HttpOnlyAccessToken"];
+            GenericResponse result;
 
             try
             {
                 result = await _userService.CheckUserName(request, messages);
+                messages.AddWithTimeStamp($"_userService.CheckUserName - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }
             catch (Exception ex)
             {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
                 result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
 
@@ -208,7 +247,10 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> RefreshToken()
         {
-            var messages = new List<string> { "UserController.RefreshToken" };
+            var member = $"{_className}.RefreshToken";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
 
             try
             {
@@ -250,14 +292,16 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
                 var result = GenericResponse.CreateErrorResponse(ex);
                 return StatusCode(500, result);
             }
             finally
             {
-                _lambdaContext?.Logger.Log(string.Join("\r\n", messages));
+                _logger.Log(member, messages, logType);
             }
         }
-
     }
 }

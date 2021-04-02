@@ -110,7 +110,7 @@ namespace Timkoto.UsersApi
             services.AddTransient<ITransactionService, TransactionService>();
             services.AddSingleton<IAppConfig>(_ => new AppConfig(_isProd));
             services.AddTransient<IVerifier, Verifier>();
-            
+            services.AddTransient<ILogger, Logger>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

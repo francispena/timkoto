@@ -326,7 +326,7 @@ namespace Timkoto.UsersApi.Services
                             on cp.contestId = c.id
                             inner join timkotodb.prizePool pp
                             on pp.contestPrizeId = cp.contestPrizeId
-                            where c.contestState in ('Upcoming', 'Ongoing') and '{groupedTeamPoint.OperatorId}';";
+                            where c.contestState = 'Ongoing' and '{groupedTeamPoint.OperatorId}';";
 
                     var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
 
@@ -575,7 +575,7 @@ namespace Timkoto.UsersApi.Services
                 on cp.contestId = c.id
                 inner join timkotodb.prizePool pp
                 on pp.contestPrizeId = cp.contestPrizeId
-                where c.contestState != 'Finished' and '{operatorId}';";
+                where c.contestState != 'Finished' and cp.operatorId = '{operatorId}';";
 
             var contestPrizePool = await _persistService.SqlQuery<ContestPrizePool>(sqlQuery);
 

@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -61,10 +63,12 @@ namespace Timkoto.UsersApi.Services
             };
 
             var result = await _persistService.Save(user);
-
+            messages.AddWithTimeStamp($"_persistService.Save - {result}");
             if (result > 0)
             {
                 var createResult = await _cognitoUserStore.CreateAsync(request.Email, request.Password, messages);
+                messages.AddWithTimeStamp($"_cognitoUserStore.CreateAsync - {createResult}");
+
                 if (createResult == Results.AccountConfirmedInCognito)
                 {
                     registrationCode.IsActive = false;
@@ -104,7 +108,7 @@ namespace Timkoto.UsersApi.Services
 
             var existingUser = await _persistService.FindOne<User>(_ =>
                 _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
-
+            
             if (existingUser != null)
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserNameExists);
