@@ -42,7 +42,7 @@ namespace Timkoto.UsersApi.Services
             }
 
             var playerWallet =
-                await _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.CreateDateTime);
+                await _persistService.FindLast<Transaction>(_ => _.UserId == userId, _ => _.Id);
 
             genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);

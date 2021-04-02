@@ -24,7 +24,7 @@ namespace Timkoto.UsersApi.Services
         public async Task<GenericResponse> AddTransaction(AddTransactionRequest request, bool limitAmount, List<string> messages)
         {
             var lastTransaction = await
-                _persistService.FindLast<Transaction>(_ => _.UserId == request.UserId, _ => _.CreateDateTime);
+                _persistService.FindLast<Transaction>(_ => _.UserId == request.UserId, _ => _.Id);
 
             var tag = "";
             if (request.TransactionType.ToString().Contains("Credit"))
