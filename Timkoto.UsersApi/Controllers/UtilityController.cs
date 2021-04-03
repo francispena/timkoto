@@ -613,7 +613,7 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     utcDate.AddDays(-1).ToString("yyyy-MM-dd"),
                     utcDate.ToString("yyyy-MM-dd"),
-                    utcDate.AddDays(1).ToString("yyyy-MM-dd")
+                    utcDate.AddDays(1).ToString("yyyy-MM-dd"),
                 };
 
                 TimeZoneInfo easternZone = null;
@@ -677,7 +677,7 @@ namespace Timkoto.UsersApi.Controllers
                 }
 
                 var sqlUpdateGame =
-                    string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE ((`hTeamId` = '{_.HTeamId}' or `vTeamId` = '{_.VTeamId}') and `contestId` = '{_.ContestId}')"));
+                    string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
 
                 var sqlUpdateGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
 
@@ -724,7 +724,7 @@ namespace Timkoto.UsersApi.Controllers
             messages.AddWithTimeStamp($"{member}");
 
             //return Ok();
-            var contestId = 2;
+            var contestId = 3;
             
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 

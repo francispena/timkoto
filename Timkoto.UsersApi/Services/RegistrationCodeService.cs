@@ -82,7 +82,7 @@ namespace Timkoto.UsersApi.Services
             {
                 return null;
             }
-            var random = new Random(100);
+            var random = new Random();
             var code = random.Next(100000, 999999).ToString();
 
             user.PasswordResetCode = code;

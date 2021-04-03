@@ -29,21 +29,6 @@ namespace Timkoto.UsersApi.Services
         {
             try
             {
-                //var responseLive = await _httpService.GetAsync<RapidApiLive>(
-                //    $"https://api-nba-v1.p.rapidapi.com/games/live/",
-                //    new Dictionary<string, string>
-                //    {
-                //        {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
-                //        {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
-                //    });
-
-                //if (responseLive?.api?.games == null)
-                //{
-                //    return "NoGame";
-                //}
-
-                //var gameIds = responseLive.api.games.Select(_ => _.gameId).ToList();
-
                 var contest = await _persistService.FindOne<Contest>(_ =>
                     _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
 
@@ -71,12 +56,6 @@ namespace Timkoto.UsersApi.Services
 
                 foreach (var game in games)
                 {
-                    var startTime = TimeZoneInfo.ConvertTimeToUtc(game.StartTime);
-                    //if (DateTime.UtcNow.Subtract(startTime).TotalMinutes <= 0 || game.Finished)
-                    //{
-                    //    continue;
-                    //}
-
                     var gameId = game.Id;
 
                     var response = await _httpService.GetAsync<GamePlayerStatiscs>(
@@ -219,12 +198,12 @@ namespace Timkoto.UsersApi.Services
 
                 var sqlInsertResult = await _persistService.ExecuteSql($"{sqlInsert} {sqlValues};");
 
-                var findSql = @"select teamId, playerId
+                var findSql = @$"select teamId, playerId
                         from `timkotodb`.`tempTeamPlayerId` t1
                     where not exists(
                         select 1
                     from `timkotodb`.`gamePlayer` t2
-                        where t1.teamId = t2.teamId and t1.playerId = t2.playerId
+                        where t1.teamId = t2.teamId and t1.playerId = t2.playerId and contestId = {contest.Id}
                         );";
 
                 var missingTeamPlayerIds = await _persistService.SqlQuery<TeamPlayerId>(findSql);

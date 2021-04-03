@@ -31,7 +31,7 @@ namespace Timkoto.Data.Repositories
             Index = "isActive_ix", NotNull = true)]
         public virtual bool IsActive { get; set; }
 
-        [Property(Name = "PhoneNumber", Column = "phoneNumber", TypeType = typeof(string), Length = 10,
+        [Property(Name = "PhoneNumber", Column = "phoneNumber", TypeType = typeof(string), Length = 12,
             Index = "phoneNumber_ix", NotNull = false)]
         public virtual string PhoneNumber { get; set; }
 

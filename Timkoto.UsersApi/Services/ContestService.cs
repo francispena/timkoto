@@ -219,7 +219,7 @@ namespace Timkoto.UsersApi.Services
                 {
                     var lastTransaction = await
                         _persistService.FindLast<Transaction>(_ => _.UserId == request.LineUpTeam.UserId,
-                            _ => _.CreateDateTime);
+                            _ => _.Id);
 
                     if (lastTransaction == null)
                     {
@@ -682,7 +682,7 @@ namespace Timkoto.UsersApi.Services
                         on pt.contestId = c.id
                         inner join timkotodb.user u
                         on u.id = pt.userId
-                        where c.contestState = 'Ongoing' and pt.operatorId = '{operatorId}';";
+                        where c.contestState = 'Ongoing' and pt.operatorId = '{operatorId}' and teamRank <= 100;";
 
             var teamRankPrizes = await _persistService.SqlQuery<TeamRankPrize>(sqlQuery);
 
@@ -694,7 +694,7 @@ namespace Timkoto.UsersApi.Services
             var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.ContestTeamFound);
             genericResponse.Data = new
             {
-                TeamRankPrizes = teamRankPrizes.Where(_ => _.TeamRank <= 100).OrderBy(_ => _.TeamRank)
+                TeamRankPrizes = teamRankPrizes.OrderBy(_ => _.TeamRank)
             };
 
             return genericResponse;
