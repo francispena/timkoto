@@ -611,6 +611,7 @@ namespace Timkoto.UsersApi.Controllers
 
                 var gameDates = new[]
                 {
+                    utcDate.AddDays(-2).ToString("yyyy-MM-dd"),
                     utcDate.AddDays(-1).ToString("yyyy-MM-dd"),
                     utcDate.ToString("yyyy-MM-dd"),
                     utcDate.AddDays(1).ToString("yyyy-MM-dd"),
@@ -679,12 +680,14 @@ namespace Timkoto.UsersApi.Controllers
                 var sqlUpdateGame =
                     string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
 
-                var sqlUpdateGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` in ('{_.VTeamId}', '{_.HTeamId}'))"));
+                var sqlUpdateHomeGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.VTeamId}' and teamLocation = 'Visitor')"));
+                var sqlUpdateVisitorGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.HTeamId}' and teamLocation = 'Home')"));
 
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery(sqlUpdateGame + ";").ExecuteUpdateAsync();
-                await dbSession.CreateSQLQuery(sqlUpdateGamePlayer + ";").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateHomeGamePlayer + ";").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateVisitorGamePlayer + ";").ExecuteUpdateAsync();
 
                 await tx.CommitAsync();
                 dbSession.Close();
@@ -715,18 +718,16 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        [Route("TestService/{start}/{count}")]
+        [Route("TestService/{contestId}")]
         [HttpGet]
-        public async Task<IActionResult> TestService([FromRoute] int start, [FromRoute] int count)
+        public async Task<IActionResult> TestService([FromRoute] long contestId)
         {
             var member = $"{_className}.TestService";
             var messages = new List<string>();
             messages.AddWithTimeStamp($"{member}");
 
-            //return Ok();
-            var contestId = 3;
             
-            var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
+            var players = await _persistService.FindMany<User>(_ => _.OperatorId == 20060406 && _.UserType == UserType.Player);
 
             var sqlQuery =
                 $@"SELECT np.id as playerId, concat(lastName, ', ', firstName) as playerName, np.jersey, nt.nickName as team, np.position, gp.salary FROM timkotodb.gamePlayer gp 
@@ -740,7 +741,7 @@ namespace Timkoto.UsersApi.Controllers
 
             var groupedPlayers = contestPlayers.GroupBy(_ => _.Position).Select(g => new { Position = g.Key, Players = g.ToList() }).ToList();
 
-            foreach (var player in players.OrderBy(_ => _.Id).Skip(start).Take(count))
+            foreach (var player in players)
             {
                 var transaction = await _transactionService.AddTransaction(new AddTransactionRequest
                 {

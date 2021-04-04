@@ -111,7 +111,7 @@ namespace Timkoto.UsersApi.Models
                     return "Please select 9 players.";
                 case Results.InvalidOperatorId:
                     return "Invalid operator Id.";
-                case Results.InvalidAgentID:
+                case Results.InvalidAgentId:
                     return "Invalid agent Id.";
                 case Results.InvalidContestId:
                     return "Invalid contest Id.";
@@ -146,7 +146,7 @@ namespace Timkoto.UsersApi.Models
                 case Results.InvalidResetCode:
                     return "Invalid password reset code.";
                 case Results.UserNameExists:
-                    return "Username is not available, please set a different user name.";
+                    return "Name already exists, please set a different Name.";
                 case Results.NoTransactionFound:
                     return "No transactions found.";
                 case Results.ContestPackageNotAssigned:

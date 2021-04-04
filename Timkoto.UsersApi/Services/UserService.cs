@@ -38,7 +38,7 @@ namespace Timkoto.UsersApi.Services
             }
 
             var existingUser = await _persistService.FindOne<User>(_ =>
-                _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
+                _.UserName == request.UserName && _.UserType == registrationCode.UserType && _.OperatorId == registrationCode.OperatorId);
 
             if (existingUser != null)
             {
@@ -106,7 +106,7 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
             }
 
-            var existingUser = await _persistService.FindOne<User>(_ =>
+            var existingUser = await _persistService.FindOne<User>(_ => _.Email != request.Email &&
                 _.UserName == request.UserName && _.OperatorId == registrationCode.OperatorId);
             
             if (existingUser != null)
@@ -125,6 +125,14 @@ namespace Timkoto.UsersApi.Services
             if (existingUser == null)
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidUserId);
+            }
+
+            var checkUserWithSameName = await _persistService.FindOne<User>(_ => _.Id != request.Id &&
+                _.UserName == request.UserName && _.UserType == existingUser.UserType && _.OperatorId == existingUser.OperatorId);
+
+            if (checkUserWithSameName != null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.UserNameExists);
             }
 
             var phoneNumber = !string.IsNullOrWhiteSpace(request.PhoneNumber)

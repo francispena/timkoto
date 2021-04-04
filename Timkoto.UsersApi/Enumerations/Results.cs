@@ -36,7 +36,7 @@
         InvalidLineUpCount,
         TeamNameMissing,
         InvalidOperatorId,
-        InvalidAgentID,
+        InvalidAgentId,
         InvalidContestId,
         AuthenticationError,
         TeamSubmissionNotAccepted,

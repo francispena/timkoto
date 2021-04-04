@@ -121,7 +121,7 @@ namespace Timkoto.UsersApi.Services
 
             if (request.LineUpTeam.AgentId == 0)
             {
-                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidAgentID);
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidAgentId);
             }
 
             if (request.LineUpTeam.UserId == 0)

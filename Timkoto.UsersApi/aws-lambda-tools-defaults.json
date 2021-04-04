@@ -12,7 +12,7 @@
     "framework"     : "netcoreapp3.1",
     "s3-prefix"     : "Timkoto/",
     "template"      : "serverless.template",
-    "template-parameters" : "\"Environment\"=\"Development\"",
+    "template-parameters" : "\"Environment\"=\"Production\"",
     "s3-bucket"           : "timkotodev",
-    "stack-name"          : "TimkotoUser-Dev"
+    "stack-name"          : "TimkotoUser-Prod"
 }

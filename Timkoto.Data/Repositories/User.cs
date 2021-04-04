@@ -14,7 +14,7 @@ namespace Timkoto.Data.Repositories
         [Generator(1, Class = "identity")]
         public virtual long Id { get; set; }
 
-        [Property(Name = "Email", Column = "email", TypeType = typeof(string), Length = 30,
+        [Property(Name = "Email", Column = "email", TypeType = typeof(string), Length = 50,
             Index = "email_ix", Unique = true, NotNull = true)]
         public virtual string Email { get; set; }
 

@@ -133,7 +133,7 @@ namespace Timkoto.UsersApi
                 _.SwaggerEndpoint($"{swaggerJsonBasePath}/swagger/v1/swagger.json", "TimKoTo API V1");
             });
 
-            var origins = _isProd ? "timkoto.com,www.timkoto.com" : "*";
+            var origins = _isProd ? "*" : "*";
 
             app.UseCors(_ => _.WithOrigins(origins)
                 .AllowAnyMethod()
