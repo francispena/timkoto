@@ -32,7 +32,7 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> ContestAgents([FromRoute] long operatorId, [FromRoute] long agentId, [FromRoute] string gameDate)
         {
-            var member = $"{_className}.AddUser";
+            var member = $"{_className}.ContestAgents";
             var messages = new List<string>();
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}/agentId:{agentId}/gameDate:{gameDate}");

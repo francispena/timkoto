@@ -848,5 +848,41 @@ namespace Timkoto.UsersApi.Controllers
 
             return StatusCode(403, "No action done");
         }
+
+        [Route("GetUsersCount")]
+        [HttpGet]
+        public async Task<IActionResult> GetUsersCount()
+        {
+            var member = $"{_className}.GetUsersCount";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            try
+            {
+                var sql = @$"SELECT o.UserName as operator, a.UserName as agent, count(*) as playersCount FROM timkotodb.user u
+                                inner join timkotodb.user o
+                                on o.id = u.operatorId
+                                inner join timkotodb.user a 
+                                on a.id = u.agentId
+                                where u.userType = 'Player'
+                                group by u.operatorId, u.agentId
+                                order by count(*) desc;
+                                ";
+
+                var agentUsersCount = await _persistService.SqlQuery<AgentUsersCount>(sql);
+
+                return Ok(agentUsersCount);
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
     }
 }
