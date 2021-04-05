@@ -7,6 +7,9 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Amazon;
+using Amazon.CloudWatchEvents;
+using Amazon.CloudWatchEvents.Model;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -101,7 +104,7 @@ namespace Timkoto.UsersApi.Controllers
             messages.AddWithTimeStamp($"{member}");
 
             return Ok(true);
-            
+
             GenericResponse result;
 
             try
@@ -242,9 +245,9 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
-        [Route("CreateContest")]
+        [Route("CreateContest/{offsetDays}")]
         [HttpGet]
-        public async Task<IActionResult> CreateContest()
+        public async Task<IActionResult> CreateContest([FromRoute] int offsetDays)
         {
             var member = $"{_className}.CreateContest";
             var messages = new List<string>();
@@ -272,7 +275,7 @@ namespace Timkoto.UsersApi.Controllers
                     return StatusCode(403, genericResponse);
                 }
 
-                var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
+                var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.AddDays(offsetDays), easternZone);
                 var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
 
                 var contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
@@ -414,10 +417,10 @@ namespace Timkoto.UsersApi.Controllers
                 {
                     await tx.RollbackAsync();
                 }
-                
+
                 logType = LogType.Error;
                 messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
-                
+
                 var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
@@ -445,7 +448,7 @@ namespace Timkoto.UsersApi.Controllers
             var messages = new List<string>();
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member}");
-            
+
             try
             {
                 var result = await _rapidNbaStatistics.GetLiveStats(new List<string>());
@@ -570,7 +573,7 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
                 messages.AddWithTimeStamp($"_contestService.SetPrizesInTransaction - {JsonConvert.SerializeObject(setPrizesInTransactionResult)}");
-                var createContestResult = await CreateContest();
+                var createContestResult = await CreateContest(0);
 
                 return Ok(new
                 {
@@ -703,7 +706,7 @@ namespace Timkoto.UsersApi.Controllers
                     dbSession.Close();
                     dbSession.Dispose();
                 }
-                
+
                 logType = LogType.Error;
                 messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
 
@@ -726,7 +729,7 @@ namespace Timkoto.UsersApi.Controllers
             var messages = new List<string>();
             messages.AddWithTimeStamp($"{member}");
 
-            
+
             var players = await _persistService.FindMany<User>(_ => _.OperatorId == 20060406 && _.UserType == UserType.Player);
 
             var sqlQuery =
@@ -804,6 +807,46 @@ namespace Timkoto.UsersApi.Controllers
             }
 
             return Ok("true");
+        }
+
+
+        [Route("SetPoller/{command}")]
+        [HttpGet]
+        public async Task<IActionResult> SetPooler([FromRoute] string command)
+        {
+            var client = new AmazonCloudWatchEventsClient(RegionEndpoint.APSoutheast1);
+
+            if (command != "start" && command != "stop")
+            {
+                return StatusCode(403, "Invalid command");
+            }
+
+            switch (command)
+            {
+                case "stop":
+                {
+                    var disableRuleRequest = new DisableRuleRequest
+                    {
+                        Name = "GetLiveStats",
+                    };
+
+                    var disableResult = await client.DisableRuleAsync(disableRuleRequest);
+                    return Ok(disableResult);
+                }
+                case "start":
+                {
+                    var enableRuleRequest = new EnableRuleRequest
+                    {
+                        Name = "GetLiveStats"
+                    };
+
+                    var enableResult = await client.EnableRuleAsync(enableRuleRequest);
+
+                    return Ok(enableResult);
+                }
+            }
+
+            return StatusCode(403, "No action done");
         }
     }
 }

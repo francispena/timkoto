@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Amazon.Lambda;
@@ -8,6 +9,8 @@ using Amazon.Runtime.Internal.Util;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Timkoto.UsersApi.Services.Interfaces;
 
 namespace Timkoto.UsersApi
 {
@@ -41,6 +44,7 @@ namespace Timkoto.UsersApi
         {
             builder
                 .UseStartup<Startup>();
+            
         }
 
         /// <summary>
@@ -56,6 +60,22 @@ namespace Timkoto.UsersApi
 
         public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
         {
+            if (request.Resource == "GetLiveStats")
+            {
+                var serviceProvider = Startup.ServiceProvider;
+                var rapidNbaStatistics = serviceProvider.GetService<IRapidNbaStatistics>();
+                
+                var getLiveStats = await rapidNbaStatistics.GetLiveStats(new List<string>());
+                lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
+
+                var contestService = serviceProvider.GetService<IContestService>();
+                var rankTeams = await contestService.RankTeams(new List<string>());
+
+                lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
+                return new APIGatewayProxyResponse {StatusCode = 200};
+            }
+
             if (request.Resource == "WarmingLambda")
             {
                 int.TryParse(request.Body, out var concurrencyCount);

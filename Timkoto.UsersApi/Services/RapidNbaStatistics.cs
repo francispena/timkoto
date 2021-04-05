@@ -156,7 +156,7 @@ namespace Timkoto.UsersApi.Services
                         {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
                     });
 
-                    if (response?.api?.statistics == null)
+                    if (response?.api?.statistics == null || !response.api.statistics.Any())
                     {
                         continue;
                     }

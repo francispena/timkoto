@@ -31,6 +31,8 @@ namespace Timkoto.UsersApi
 
         public static IConfiguration Configuration { get; private set; }
 
+        public static IServiceProvider ServiceProvider { get; set; }
+
         private readonly bool _isProd;
 
         public Startup(IConfiguration configuration)
@@ -146,6 +148,8 @@ namespace Timkoto.UsersApi
             app.UseAuthentication();
      
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+
+            ServiceProvider = app.ApplicationServices;
         }
     }
 }
