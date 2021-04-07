@@ -222,8 +222,6 @@ namespace Timkoto.UsersApi.Services
 
         private async Task<string> FixMissingPlayers(List<TeamPlayerId> teamPlayerIds, long contestId, List<string> messages)
         {
-            ITransaction tx = null;
-
             try
             {
                 foreach (var teamPlayerId in teamPlayerIds)
@@ -279,67 +277,36 @@ namespace Timkoto.UsersApi.Services
                         };
 
                         await _persistService.Save(nbaPlayer);
-
-                        var gamePlayer = await _persistService.FindOne<GamePlayer>(_ =>
-                            _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
-
-                        if (gamePlayer != null)
-                        {
-                            var newGamePlayer = new GamePlayer
-                            {
-                                ContestId = gamePlayer.ContestId,
-                                GameId = gamePlayer.GameId,
-                                TeamId = teamPlayerId.TeamId,
-                                TeamLocation = gamePlayer.TeamLocation,
-                                PlayerId = teamPlayerId.PlayerId
-                            };
-                            await _persistService.Save(newGamePlayer);
-                        }
                     }
                     else
                     {
-                        var gamePlayers = await _persistService.FindMany<GamePlayer>(_ => _.PlayerId == nbaPlayer.Id);
-
-                        if (gamePlayers != null || !gamePlayers.Any())
-                        {
-                            foreach (var gamePlayer in gamePlayers)
-                            {
-                                await _persistService.ExecuteSql(
-                                    $"UPDATE `timkotodb`.`gamePlayer` SET `teamId` = '{teamPlayerId.TeamId}', `playerId` = '{player.playerId}' WHERE (`playerId` = '{nbaPlayer.Id}' and `teamId` = '{gamePlayer.TeamId}');");
-                            }
-                        }
-                        else
-                        {
-                            var gamePlayer = await _persistService.FindOne<GamePlayer>(_ =>
-                                _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
-
-                            if (gamePlayer != null )
-                            {
-                                var newGamePlayer = new GamePlayer
-                                {
-                                    ContestId = gamePlayer.ContestId,
-                                    GameId = gamePlayer.GameId,
-                                    TeamId = teamPlayerId.TeamId,
-                                    TeamLocation = gamePlayer.TeamLocation,
-                                    PlayerId = teamPlayerId.PlayerId
-                                };
-                                await _persistService.Save(newGamePlayer);
-                            }
-                        }
-
                         await _persistService.ExecuteSql(
                             $"UPDATE `timkotodb`.`nbaPlayer` SET `id` = '{player.playerId}', `teamId` = '{teamPlayerId.TeamId}' WHERE (`id` = '{nbaPlayer.Id}');");
                     }
+
+                    var gamePlayer = await _persistService.FindOne<GamePlayer>(_ => _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
+
+                    if (gamePlayer == null)
+                    {
+                        continue;
+                    }
+
+                    var newGamePlayer = new GamePlayer
+                    {
+                        ContestId = contestId,
+                        GameId = gamePlayer.GameId,
+                        TeamId = teamPlayerId.TeamId,
+                        TeamLocation = gamePlayer.TeamLocation,
+                        PlayerId = teamPlayerId.PlayerId
+                    };
+
+                    await _persistService.Save(newGamePlayer);
                 }
+
                 return "success";
             }
             catch (Exception ex)
             {
-                if (tx != null && tx.IsActive)
-                {
-                    await tx.RollbackAsync();
-                }
-
                 return $"GetStatsForFinishedGames error - {ex.Message}";
             }
         }

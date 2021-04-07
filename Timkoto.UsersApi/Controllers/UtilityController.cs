@@ -867,8 +867,7 @@ namespace Timkoto.UsersApi.Controllers
                                 on a.id = u.agentId
                                 where u.userType = 'Player'
                                 group by u.operatorId, u.agentId
-                                order by count(*) desc;
-                                ";
+                                order by count(*) desc;";
 
                 var agentUsersCount = await _persistService.SqlQuery<AgentUsersCount>(sql);
 
