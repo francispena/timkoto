@@ -44,6 +44,7 @@ namespace Timkoto.UsersApi.Controllers
             try
             {
                 var idToken = Request.Headers["x-Api-kEy"];
+                messages.AddWithTimeStamp(idToken);
                 var tokenEmail = _verifier.GetEmail(idToken);
                 if (!string.Equals(tokenEmail, request.Email, StringComparison.InvariantCultureIgnoreCase))
                 {
