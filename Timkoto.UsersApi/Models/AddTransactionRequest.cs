@@ -15,5 +15,7 @@ namespace Timkoto.UsersApi.Models
         public virtual TransactionType TransactionType { get; set; }
 
         public virtual decimal Amount { get; set; }
+        public string Email { get; set; }
+
     }
 }

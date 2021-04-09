@@ -165,6 +165,8 @@ namespace Timkoto.UsersApi.Models
                     return "User information updated.";
                 case Results.UserInfoUpdateFailed:
                     return "User information failed, please contact your agent.";
+                case Results.InvalidNumberOfPlayersInPosition:
+                    return "Invalid number of players in position.";
             }
 
             return "";

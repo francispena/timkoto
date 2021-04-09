@@ -88,16 +88,16 @@ namespace Timkoto.UsersApi.Controllers
 
                 if (authenticationResult.IsSuccess)
                 {
-                    //Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-                    //Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(authenticationResult.Jwt), new CookieOptions
-                    //{
-                    //    Path = "/",
-                    //    HttpOnly = true,
-                    //    IsEssential = true,
-                    //    Expires = DateTime.Now.AddMonths(1),
-                    //    Secure = true,
-                    //    Domain = "timkoto.com"
-                    //});
+                    Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                    Response.Cookies.Append("HttpOnlyAccessToken", JsonConvert.SerializeObject(authenticationResult.Jwt), new CookieOptions
+                    {
+                        Path = "/",
+                        HttpOnly = true,
+                        IsEssential = true,
+                        Expires = DateTime.Now.AddMonths(1),
+                        Secure = false,
+                        Domain = "localhost"
+                    });
 
                     //authenticationResult.Jwt = null;
 

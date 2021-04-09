@@ -64,6 +64,7 @@
         Unauthorized,
         NoTokenFound,
         UserInfoUpdated,
-        UserInfoUpdateFailed
+        UserInfoUpdateFailed,
+        InvalidNumberOfPlayersInPosition
     }
 }

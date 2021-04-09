@@ -730,7 +730,7 @@ namespace Timkoto.UsersApi.Controllers
             messages.AddWithTimeStamp($"{member}");
 
 
-            var players = await _persistService.FindMany<User>(_ => _.OperatorId == 20060406 && _.UserType == UserType.Player);
+            var players = await _persistService.FindMany<User>(_ => _.OperatorId == 10010 && _.UserType == UserType.Player);
 
             var sqlQuery =
                 $@"SELECT np.id as playerId, concat(lastName, ', ', firstName) as playerName, np.jersey, nt.nickName as team, np.position, gp.salary FROM timkotodb.gamePlayer gp 

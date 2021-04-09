@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NHibernate;
+using NHibernate.Transform;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -188,15 +189,17 @@ namespace Timkoto.UsersApi.Services
                     { PlayerId = _.playerId, TeamId = _.teamId }));
                 }
 
+                var dbSession = _persistService.GetSession();
+                
                 var createTempTableSql =
                     "CREATE TEMPORARY TABLE `timkotodb`.`tempTeamPlayerId` (`id` INT NOT NULL AUTO_INCREMENT, `teamId` VARCHAR(40) NULL, `playerId` VARCHAR(40) NULL,PRIMARY KEY(`id`));";
 
-                var createResult = await _persistService.ExecuteSql(createTempTableSql);
-
+                await dbSession.CreateSQLQuery(createTempTableSql).ExecuteUpdateAsync();
+                
                 var sqlInsert = "INSERT INTO `timkotodb`.`tempTeamPlayerId` (`teamId`, `playerId`) VALUES ";
                 var sqlValues = string.Join(",", teamPlayerIds.Select(_ => $"('{_.TeamId}', '{_.PlayerId}')"));
 
-                var sqlInsertResult = await _persistService.ExecuteSql($"{sqlInsert} {sqlValues};");
+                await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
 
                 var findSql = @$"select teamId, playerId
                         from `timkotodb`.`tempTeamPlayerId` t1
@@ -206,7 +209,12 @@ namespace Timkoto.UsersApi.Services
                         where t1.teamId = t2.teamId and t1.playerId = t2.playerId and contestId = {contest.Id}
                         );";
 
-                var missingTeamPlayerIds = await _persistService.SqlQuery<TeamPlayerId>(findSql);
+                var missingTeamPlayerIds = (await dbSession.CreateSQLQuery(findSql)
+                    .SetResultTransformer(Transformers.AliasToBean<TeamPlayerId>()).ListAsync<TeamPlayerId>()).ToList();
+
+                dbSession.Close();
+                dbSession.Dispose();
+
                 if (missingTeamPlayerIds.Any())
                 {
                     await FixMissingPlayers(missingTeamPlayerIds, contest.Id, messages);

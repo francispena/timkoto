@@ -102,6 +102,14 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidLineUpCount);
             }
 
+            foreach (var playerLineUp in request.LineUp)
+            {
+                if (playerLineUp.Players.Count(_ => _.Selected) > (playerLineUp.Position != "C" ? 2: 1) )
+                {
+                    return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidNumberOfPlayersInPosition);
+                }
+            }
+
             var salary = request.LineUp.SelectMany(_ => _.Players).Where(_ => _.Selected).Sum(_ => _.Salary);
 
             if (salary > 60000)
@@ -618,8 +626,9 @@ namespace Timkoto.UsersApi.Services
                         packagePoints += prize.Prize;
                     }
                 }
-                
-                var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent), 31000m) - packagePoints;
+
+                var factor = .9m;
+                var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent) * factor, 31000m) - packagePoints;
                 if (pointsToAdd > 0)
                 {
                     foreach (var prize in contestPrizePool)
@@ -655,7 +664,6 @@ namespace Timkoto.UsersApi.Services
 
             foreach (var prize in contestPrizePool)
             {
-            
                 if (prize.Prize < 100)
                 {
                     prize.Prize = 0m;

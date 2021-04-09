@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization.Interfaces;
@@ -32,10 +31,10 @@ namespace Timkoto.UsersApi.Services
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
             }
-            if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
-            {
-                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
-            }
+            //if (DateTime.UtcNow.Subtract(registrationCode.CreateDateTime).TotalMinutes > 120)
+            //{
+            //    return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidRegistrationCode);
+            //}
 
             var existingUser = await _persistService.FindOne<User>(_ =>
                 _.UserName == request.UserName && _.UserType == registrationCode.UserType && _.OperatorId == registrationCode.OperatorId);

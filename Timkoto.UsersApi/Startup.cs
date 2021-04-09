@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Timkoto.Data.Services;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Authorization;
@@ -135,11 +136,15 @@ namespace Timkoto.UsersApi
                 _.SwaggerEndpoint($"{swaggerJsonBasePath}/swagger/v1/swagger.json", "TimKoTo API V1");
             });
 
-            var origins = _isProd ? "*" : "*";
+            //var origins = _isProd ? "https://timkoto.com" : "http://localhost:3000";
+            var origins = _isProd ? "https://timkoto.com" : "*";
 
             app.UseCors(_ => _.WithOrigins(origins)
                 .AllowAnyMethod()
-                .AllowAnyHeader());
+                .AllowAnyHeader()
+                //.AllowCredentials()
+                .Build()
+            );
 
             app.UseHttpsRedirection();
             
@@ -150,6 +155,15 @@ namespace Timkoto.UsersApi
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
             ServiceProvider = app.ApplicationServices;
+        }
+
+        private bool IsOriginAllowed(string origin)
+        {
+            if (!_isProd && origin.Contains("localhost")) return true;
+            if (!_isProd && origin == "https://dev.timkoto.com") return true;
+            if (_isProd && (origin == "https://timkoto.com" || origin == "https://www.timkoto.com")) return true;
+
+            return false;
         }
     }
 }

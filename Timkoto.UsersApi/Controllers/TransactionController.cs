@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
@@ -20,12 +21,15 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly ILogger _logger;
 
-        private readonly string _className = "RegistrationCodeController";
+        private readonly string _className = "TransactionController";
 
-        public TransactionController(ITransactionService transactionService, ILogger logger)
+        private readonly IVerifier _verifier;
+
+        public TransactionController(ITransactionService transactionService, ILogger logger, IVerifier verifier)
         {
             _transactionService = transactionService;
             _logger = logger;
+            _verifier = verifier;
         }
 
         [HttpPost]
@@ -39,6 +43,18 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
+                var idToken = Request.Headers["x-Api-kEy"];
+                var tokenEmail = _verifier.GetEmail(idToken);
+                if (!string.Equals(tokenEmail, request.Email, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    messages.AddWithTimeStamp($"Transaction failed, email did not match - {tokenEmail} and {request.Email}");
+
+                    var genericResponse =
+                        GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AddTransactionFailed);
+
+                    return StatusCode(403, genericResponse);
+                }
+
                 result = await _transactionService.AddTransaction(request, true, messages);
                 messages.AddWithTimeStamp($"_transactionService.AddTransaction - {JsonConvert.SerializeObject(result)}");
 
