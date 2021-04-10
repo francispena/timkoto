@@ -33,7 +33,18 @@ namespace Timkoto.UsersApi.Authorization
                 throw new NotAuthorizedException("");
             }
 
-            var idTokenPayloadStringBase64String = Convert.FromBase64String($"{jwts[1]}{(jwts[1].Length % 2 == 0 ? "==" : "=")}");
+            var padding = "";
+            if (jwts[1].Length % 4 == 2)
+            {
+                padding = "==";
+            }
+
+            if (jwts[1].Length % 4 == 3)
+            {
+                padding = "=";
+            }
+
+            var idTokenPayloadStringBase64String = Convert.FromBase64String($"{jwts[1]}{padding}");
             var decodedString = Encoding.UTF8.GetString(idTokenPayloadStringBase64String);
 
             var idTokenPayload = JsonConvert.DeserializeObject<IdTokenPayload>(decodedString);

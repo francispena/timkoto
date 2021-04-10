@@ -111,7 +111,7 @@ namespace Timkoto.UsersApi.Services
             GenericResponse genericResponse;
 
             var sqlQuery =
-            $@"SELECT concat(np.lastName, ', ', np.firstName) as playerName, nt.nickName as teamName, gp.points, gp.rebounds, 
+            $@"SELECT concat(np.lastName, ', ', substr(np.firstName, 1, 1), '.') as playerName, nt.nickName as teamName, gp.points, gp.rebounds, 
                 gp.assists, gp.steals, gp.blocks, gp.turnOvers, gp.totalPoints FROM timkotodb.playerLineup pl
                 inner join timkotodb.gamePlayer gp
                 on gp.playerId = pl.playerId and gp.contestId = pl.contestId 

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http.Extensions;
 using Timkoto.UsersApi.Authorization.Interfaces;
 using Timkoto.UsersApi.Enumerations;
 using Timkoto.UsersApi.Extensions;
@@ -40,6 +41,14 @@ namespace Timkoto.UsersApi.Controllers
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
             GenericResponse result;
+
+            foreach (var header in Request.Headers)
+            {
+                messages.AddWithTimeStamp($"{header.Key} - {header.Value}");
+            }
+
+            messages.AddWithTimeStamp($"Request.GetEncodedUrl - {Request.GetEncodedUrl()}");
+            messages.AddWithTimeStamp($"Request.GetEncodedPathAndQuery - {Request.GetEncodedPathAndQuery()}");
 
             try
             {

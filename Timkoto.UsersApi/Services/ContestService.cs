@@ -685,7 +685,7 @@ namespace Timkoto.UsersApi.Services
         public async Task<GenericResponse> TeamRanks(long operatorId, List<string> messages)
         {
             var sqlQuery =
-                $@"select userName, teamName, score, teamRank, prize from timkotodb.contest c
+                $@"select pt.id as playerTeamId, userName, teamName, score, teamRank, prize from timkotodb.contest c
                         inner join timkotodb.playerTeam pt
                         on pt.contestId = c.id
                         inner join timkotodb.user u

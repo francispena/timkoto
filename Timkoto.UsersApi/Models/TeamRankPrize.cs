@@ -2,6 +2,8 @@
 {
     public class TeamRankPrize
     {
+        public long PlayerTeamId { get; set; }
+
         public string UserName { get; set; }
 
         public string TeamName { get; set; }
