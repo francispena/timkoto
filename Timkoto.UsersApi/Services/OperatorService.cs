@@ -95,5 +95,47 @@ namespace Timkoto.UsersApi.Services
 
             return genericResponse;
         }
+
+        public async Task<GenericResponse> GetContestPlayers(long operatorId, string gameDate, List<string> messages)
+        {
+            GenericResponse genericResponse;
+
+            var contest = await _persistService.FindOne<Contest>(_ => _.GameDate == gameDate);
+            if (contest == null)
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.GameNotFound);
+
+                return genericResponse;
+            }
+
+            var sqlQuery =
+                $@"select pt.userId as playerId, ua.userName as agentName, u.userName as playerName, count(*) as entries
+                    from timkotodb.playerTeam pt
+                    inner join timkotodb.user u
+                    on u.id = pt.userId
+                    inner join timkotodb.user ua
+                    on ua.id = pt.agentId
+                    where pt.operatorId = '{operatorId}' and pt.contestId = '{contest.Id}'
+                    group by pt.userId, pt.teamName,ua.userName
+                    order by ua.userName, u.userName;";
+
+            var players = await _persistService.SqlQuery<ContestOperatorPlayer>(sqlQuery);
+
+            if (players == null || !players.Any())
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoPlayerFound);
+
+                return genericResponse;
+            }
+
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayersFound);
+
+            genericResponse.Data = new { Players = players};
+
+            return genericResponse;
+        }
     }
 }

@@ -91,5 +91,39 @@ namespace Timkoto.UsersApi.Controllers
                 _logger.Log(member, messages, logType);
             }
         }
+
+        [Route("Players/{operatorId}/{gameDate}")]
+        [HttpGet]
+        public async Task<IActionResult> ContestAgentPlayers([FromRoute] long operatorId, [FromRoute] string gameDate)
+        {
+            var member = $"{_className}.ContestAgentPlayers";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}/gameDate:{gameDate}");
+
+            GenericResponse result;
+
+            try
+            {
+                result = await _operatorService.GetContestPlayers(operatorId, gameDate, messages);
+
+                messages.AddWithTimeStamp($"_operatorService.GetContestPlayers - {JsonConvert.SerializeObject(result)}");
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                result = GenericResponse.CreateErrorResponse(ex);
+
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
     }
 }

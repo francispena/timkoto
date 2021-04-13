@@ -10,5 +10,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<GenericResponse> GetAgents(long operatorId, List<string> messages);
 
         Task<GenericResponse> GetContestAgents(long operatorId, string gameDate, List<string> messages);
+
+        Task<GenericResponse> GetContestPlayers(long operatorId, string gameDate, List<string> messages);
     }
 }
