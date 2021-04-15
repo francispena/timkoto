@@ -185,8 +185,9 @@ namespace Timkoto.UsersApi.Services
                     var sqlUpdate = string.Join(";", updates);
                     await _persistService.ExecuteSql($"{sqlUpdate};");
 
-                    teamPlayerIds.AddRange(response.api.statistics.Select(_ => new TeamPlayerId
-                    { PlayerId = _.playerId, TeamId = _.teamId }));
+                    teamPlayerIds.AddRange(response.api.statistics.Where(_ => _.points != "0" || _.totReb != "0" || _.assists != "0" || _.steals != "0"
+                                                                              || _.blocks != "0" || _.turnovers != "0").Select(_ => new TeamPlayerId
+                    { PlayerId = _.playerId, TeamId = _.teamId }).ToList());
                 }
 
                 var dbSession = _persistService.GetSession();
