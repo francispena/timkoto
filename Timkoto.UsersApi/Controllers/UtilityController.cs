@@ -573,12 +573,12 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
                 messages.AddWithTimeStamp($"_contestService.SetPrizesInTransaction - {JsonConvert.SerializeObject(setPrizesInTransactionResult)}");
-                var createContestResult = await CreateContest(0);
+                //var createContestResult = await CreateContest(0);
 
                 return Ok(new
                 {
                     setPrizesInTransactionResult,
-                    createContestResult
+                    //createContestResult
                 });
             }
             catch (Exception ex)

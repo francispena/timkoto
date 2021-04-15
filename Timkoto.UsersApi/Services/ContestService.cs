@@ -534,7 +534,7 @@ namespace Timkoto.UsersApi.Services
                     from timkotodb.playerLineup pl
                     inner join timkotodb.gamePlayer gp
                     on gp.contestId = pl.contestId and gp.playerId = pl.playerId
-                    where pl.contestId = '{contest.Id}'
+                    where pl.contestId = '{contest.Id}' 
                     group by pl.operatorId, pl.playerTeamId;";
 
                 var teamPoints = await _persistService.SqlQuery<TeamPoints>(sqlQuery);
