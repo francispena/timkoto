@@ -25,12 +25,12 @@ namespace Timkoto.UsersApi.Authorization
             return accessToken == user?.AccessToken;
         }
 
-        public string GetEmail(string idToken)
+        public async Task<bool> VerifyTransactionRequest(string idToken, AddTransactionRequest addTransactionRequest)
         {
             var jwts = idToken.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
             if (jwts.Length != 3)
             {
-                throw new NotAuthorizedException("");
+                return false;
             }
 
             var padding = "";
@@ -49,7 +49,10 @@ namespace Timkoto.UsersApi.Authorization
 
             var idTokenPayload = JsonConvert.DeserializeObject<IdTokenPayload>(decodedString);
 
-            return idTokenPayload?.CognitoUsername;
+            var user = await _persistService.FindOne<User>(_ => _.Email == idTokenPayload.CognitoUsername);
+
+            return user.OperatorId == addTransactionRequest.OperatorId &&
+                   user.AgentId == addTransactionRequest.AgentId && user.Email == addTransactionRequest.Email;
         }
     }
 }

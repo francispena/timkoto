@@ -3,10 +3,12 @@ using Newtonsoft.Json;
 using NHibernate;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Web;
 using Amazon;
 using Amazon.CloudWatchEvents;
 using Amazon.CloudWatchEvents.Model;
@@ -232,6 +234,326 @@ namespace Timkoto.UsersApi.Controllers
                 var retVal = await _persistService.ExecuteSql($"{sqlInsert}{sqlValues}");
 
                 return Ok(retVal);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("GetOfficialNbaPlayers")]
+        [HttpGet]
+        public async Task<IActionResult> GetOfficialNbaPlayers()
+        {
+
+            return Ok();
+            var member = $"{_className}.GetOfficialPlayers";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            GenericResponse result;
+
+            try
+            {
+                var players = new List<OfficialNbaPlayer>();
+
+                var response = await _httpService.GetAsync<NbaApiPlayers>("https://stats.nba.com/stats/playerindex?College=&Country=&DraftPick=&DraftRound=&DraftYear=&Height=&Historical=0&LeagueID=00&Season=2020-21&SeasonType=Regular%20Season&TeamID=0&Weight=",
+                    new Dictionary<string, string>
+                    {
+                        {"Host", "stats.nba.com"},
+                        {"Connection", "keep-alive"},
+                        {
+                            "sec-ch-ua",
+                            "\"Google Chrome\";v=\"89\", \"Chromium\";v=\"89\",\";Not A Brand\";v=\"99\""
+                        },
+                        {"sec-ch-ua-mobile", "?0"},
+                        {
+                            "User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36"
+                        },
+                        {"Accept", " */*"},
+                        {"Origin", "https://www.nba.com"},
+                        {"Sec-Fetch-Site", "same-site"},
+                        {"Sec-Fetch-Mode", "cors"},
+                        {"Sec-Fetch-Dest", "empty"},
+                        {"Referer", "https://www.nba.com/"},
+                        {"Accept-Encoding", "gzip, deflate, br"},
+                        {"Accept-Language", "en-US,en;q=0.9,fil-PH;q=0.8,fil;q=0.7"}
+                    });
+
+                foreach (var rowset in response.resultSets[0].rowSet)
+                {
+                    var player = new OfficialNbaPlayer();
+                    if (rowset[PLAYERFIELDS.PERSON_ID] != null)
+                    {
+                        player.PERSON_ID = (long)rowset[PLAYERFIELDS.PERSON_ID];
+                        player.PLAYER_LAST_NAME = (string)rowset[PLAYERFIELDS.PLAYER_LAST_NAME];
+                        player.PLAYER_FIRST_NAME = (string)rowset[PLAYERFIELDS.PLAYER_FIRST_NAME];
+                        player.PLAYER_SLUG = (string)rowset[PLAYERFIELDS.PLAYER_SLUG];
+                        if (rowset[PLAYERFIELDS.TEAM_ID] != null)
+                            player.TEAM_ID = (long)rowset[PLAYERFIELDS.TEAM_ID];
+                        player.TEAM_SLUG = (string)rowset[PLAYERFIELDS.TEAM_SLUG];
+                        if (rowset[PLAYERFIELDS.IS_DEFUNCT] != null)
+                            player.IS_DEFUNCT = (long)rowset[PLAYERFIELDS.IS_DEFUNCT];
+                        player.TEAM_CITY = (string)rowset[PLAYERFIELDS.TEAM_CITY];
+                        player.TEAM_NAME = (string)rowset[PLAYERFIELDS.TEAM_NAME];
+                        player.TEAM_ABBREVIATION = (string)rowset[PLAYERFIELDS.TEAM_ABBREVIATION];
+                        player.JERSEY_NUMBER = (string)rowset[PLAYERFIELDS.JERSEY_NUMBER];
+                        player.POSITION = (string)rowset[PLAYERFIELDS.POSITION];
+                        player.HEIGHT = (string)rowset[PLAYERFIELDS.HEIGHT];
+                        player.WEIGHT = (string)rowset[PLAYERFIELDS.WEIGHT];
+                        player.COLLEGE = (string)rowset[PLAYERFIELDS.COLLEGE];
+                        player.COUNTRY = (string)rowset[PLAYERFIELDS.COUNTRY];
+                        if (rowset[PLAYERFIELDS.DRAFT_YEAR] != null)
+                            player.DRAFT_YEAR = (long)rowset[PLAYERFIELDS.DRAFT_YEAR];
+                        if (rowset[PLAYERFIELDS.DRAFT_ROUND] != null)
+                            player.DRAFT_ROUND = (long)rowset[PLAYERFIELDS.DRAFT_ROUND];
+                        if (rowset[PLAYERFIELDS.DRAFT_NUMBER] != null)
+                            player.DRAFT_NUMBER = (long)rowset[PLAYERFIELDS.DRAFT_NUMBER];
+                        if (rowset[PLAYERFIELDS.ROSTER_STATUS] != null)
+                            player.ROSTER_STATUS = (double)rowset[PLAYERFIELDS.ROSTER_STATUS];
+                        player.FROM_YEAR = (string)rowset[PLAYERFIELDS.FROM_YEAR];
+                        player.TO_YEAR = (string)rowset[PLAYERFIELDS.TO_YEAR];
+                        if (rowset[PLAYERFIELDS.PTS] != null)
+                            player.PTS = (double)rowset[PLAYERFIELDS.PTS];
+                        if (rowset[PLAYERFIELDS.REB] != null)
+                            player.REB = (double)rowset[PLAYERFIELDS.REB];
+                        if (rowset[PLAYERFIELDS.AST] != null)
+                            player.AST = (double)rowset[PLAYERFIELDS.AST];
+                        player.STATS_TIMEFRAME = (string)rowset[PLAYERFIELDS.STATS_TIMEFRAME];
+
+                        players.Add(player);
+                    }
+                }
+
+                var retVal = await _persistService.BatchSave(players);
+                
+                //var sqlInsert = "INSERT INTO `timkotodb`.`nbaPlayer` (`id`, `teamId`, `firstName`, `lastName`, `jersey`, `position`, `season`, `salary`) VALUES ";
+                //var sqlValues = string.Join(",", players.Select(_ => $"('{_.Id}', '{_.TeamId}', '{_.FirstName.Replace("'", "''")}', '{_.LastName.Replace("'", "''")}', '{_.Jersey}', '{_.Position.Replace("'", "''")}', '2020', '0.00')"));
+
+                //var retVal = await _persistService.ExecuteSql($"{sqlInsert}{sqlValues}");
+
+                return Ok(true);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("GetOfficialNbaSchedule")]
+        [HttpGet]
+        public async Task<IActionResult> GetOfficialNbaSchedule()
+        {
+            return Ok();
+            var member = $"{_className}.GetOfficialNbaSchedule";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            GenericResponse result;
+
+            try
+            {
+                var schedules = new List<OfficialNbaSchedules>();
+
+                var response = await _httpService.GetAsync<NbaApiSchedules>("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json",
+                    new Dictionary<string, string>
+                    {
+
+                    });
+
+                foreach (var leagueScheduleGameDate in response.leagueSchedule.gameDates)
+                {
+                    if (DateTime.TryParseExact(leagueScheduleGameDate.gameDate, "M/d/yyyy h:mm:ss tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out var gameDate) &&
+                        gameDate > DateTime.Now.AddDays(-1))
+                    {
+                        foreach (var officialNbaGame in leagueScheduleGameDate.games)
+                        {
+                            var officialNbaSchedules = new OfficialNbaSchedules();
+                            officialNbaSchedules.GameDate = gameDate.ToString("yyyy-MM-dd");
+                            officialNbaSchedules.GameDateEst = officialNbaGame.gameDateEst;
+                            officialNbaSchedules.GameDateTimeEst = officialNbaGame.gameDateTimeEst;
+                            officialNbaSchedules.GameDateTimeUTC = officialNbaGame.gameDateTimeUTC;
+                            officialNbaSchedules.GameDateUTC = officialNbaGame.gameDateUTC;
+                            officialNbaSchedules.GameId = officialNbaGame.gameId;
+                            officialNbaSchedules.GameTimeEst = officialNbaGame.gameTimeEst;
+                            officialNbaSchedules.GameTimeUTC = officialNbaGame.gameTimeUTC;
+                            officialNbaSchedules.HomeTeamId = officialNbaGame.homeTeam.teamId;
+                            officialNbaSchedules.HomeTeamName = officialNbaGame.homeTeam.teamName;
+                            officialNbaSchedules.VisitorTeamId = officialNbaGame.awayTeam.teamId;
+                            officialNbaSchedules.VisitorTeamName = officialNbaGame.awayTeam.teamName;
+                            schedules.Add(officialNbaSchedules);
+
+                        }
+                    }
+                }
+
+                var retVal = await _persistService.BatchSave(schedules);
+
+                return Ok(true);
+            }
+            catch (Exception ex)
+            {
+                result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
+
+        [Route("GetOfficialNbaStats")]
+        [HttpGet]
+        public async Task<IActionResult> GetOfficialNbaStats()
+        {
+            var member = $"{_className}.GetOfficialNbaStats";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+
+            GenericResponse result;
+
+            try
+            {
+                var contest = await _persistService.FindOne<Contest>(_ =>
+                    _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+
+                if (contest == null)
+                {
+                    return Ok("No ongoing contest");
+                }
+
+                TimeZoneInfo easternZone = null;
+
+                easternZone = TimeZoneInfo.FindSystemTimeZoneById(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Eastern Standard Time" : "America/New_York");
+
+                var estNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
+
+                var schedules =
+                    await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate && _.GameDateTimeEst < estNow);
+
+                if (!schedules.Any())
+                {
+                    return Ok("No game schedule");
+                }
+
+                var sqlInsert =
+                    "INSERT INTO `timkotodb`.`officialNbaPlayerStats` (`personId`, `teamId`, `teamName`, `location`, `firstName`, `familyName`, `points`, `assists`, `blocks`, `steals`, `reboundsTotal`, `turnovers`) VALUES ";
+                var sqlValues = new List<string>();
+
+                foreach (var schedule in schedules)
+                {
+                    var response = await _httpService.GetAsync<NbaApiPlayerStats>($"https://cdn.nba.com/static/json/liveData/boxscore/boxscore_{schedule.GameId}.json",
+                        new Dictionary<string, string>
+                        {
+                        });
+
+                    if (response?.game?.awayTeam?.players != null && response.game.awayTeam.players.Any())
+                    {
+                        foreach (var player in response.game.awayTeam.players)
+                        {
+                            if (player.statistics == null)
+                            {
+                                continue;
+                            }
+
+                            sqlValues.Add($"('{player.personId}', '{response.game.awayTeam.teamId}', '{response.game.awayTeam.teamName.Replace("'", "''")}', 'Visitor', '{player.firstName.Replace("'", "''")}', '{player.familyName.Replace("'", "''")}', '{player.statistics.points}', '{player.statistics.assists}', '{player.statistics.blocks}', '{player.statistics.steals}', '{player.statistics.reboundsTotal}', '{player.statistics.turnovers}')");
+                        }
+                    }
+
+                    if (response?.game?.awayTeam?.players == null || !response.game.homeTeam.players.Any())
+                    {
+                        continue;
+                    }
+
+                    {
+                        foreach (var player in response.game.homeTeam.players)
+                        {
+                            if (player.statistics == null)
+                            {
+                                continue;
+                            }
+
+                            sqlValues.Add($"('{player.personId}', '{response.game.homeTeam.teamId}', '{response.game.homeTeam.teamName.Replace("'", "''")}', 'Home', '{player.firstName.Replace("'", "''")}', '{player.familyName.Replace("'", "''")}', '{player.statistics.points}', '{player.statistics.assists}', '{player.statistics.blocks}', '{player.statistics.steals}', '{player.statistics.reboundsTotal}', '{player.statistics.turnovers}')");
+                        }
+                    }
+                }
+
+                if (sqlValues.Any())
+                {
+                    var truncateExecuteSql = await _persistService.ExecuteSql("TRUNCATE `timkotodb`.`officialNbaPlayerStats`;");
+                    
+                    if (!truncateExecuteSql)
+                    {
+                        return Ok("Truncate Failed");
+                    }
+
+                    var insertQuery = $"{sqlInsert}{string.Join(",", sqlValues)};";
+
+                    var retVal = await _persistService.ExecuteSql(insertQuery);
+
+                    if (!retVal)
+                    {
+                        return Ok("Insert official Result - false");
+                    }
+
+                    var sqlQuery =
+                        @"SELECT n.id as playerId, o.points, o.reboundsTotal, o.assists, o.steals, o.blocks, o.turnovers FROM timkotodb.officialNbaPlayerStats o 
+                            inner join timkotodb.nbaPlayer n 
+                            on n.lastName = o.familyName and n.firstName = o.firstName
+                            inner join timkotodb.nbaTeam t 
+                            on t.nickName = o.teamName and t.id = n.teamId;";
+
+                    var officialPlayerStats = await _persistService.SqlQuery<OfficialPlayerStats>(sqlQuery);
+                    
+                    if (officialPlayerStats.Any())
+                    {
+                        var updates = new List<string>();
+
+                        foreach (var stats in officialPlayerStats)
+                        {
+                            decimal points = stats.Points;
+                            decimal totReb = stats.ReboundsTotal;
+                            totReb *= 1.2m;
+                            decimal assists = stats.Assists;
+                            assists *= 1.5m;
+
+                            decimal steals = stats.Steals;
+                            steals *= 2;
+
+                            decimal blocks = stats.Blocks;
+                            blocks *= 2;
+                            decimal turnovers = stats.TurnOvers;
+                            turnovers *= -1;
+
+                            var totalPoints = points + totReb + assists + steals + blocks + turnovers;
+
+                            updates.Add($@"UPDATE `timkotodb`.`gamePlayer` SET `points` = {points}, `rebounds` = {totReb}, `assists` = {assists}, `steals` = {steals}, `blocks` = {blocks}, `turnOvers` = {turnovers}, `totalPoints` = {totalPoints} WHERE(`contestId` = '{contest.Id}' and playerId = '{stats.PlayerId}')");
+                        }
+
+                        var sqlUpdate = string.Join(";", updates);
+                        var updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
+                        return Ok($"Update Game Player - {updateResult}");
+                    }
+                }
+
+                return Ok(false);
             }
             catch (Exception ex)
             {
@@ -564,7 +886,7 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> SetPrizesInTransaction()
         {
-            var member = $"{_className}.Post";
+            var member = $"{_className}.SetPrizesInTransaction";
             var messages = new List<string>();
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member}");
@@ -573,12 +895,12 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var setPrizesInTransactionResult = await _contestService.SetPrizesInTransaction(new List<string>());
                 messages.AddWithTimeStamp($"_contestService.SetPrizesInTransaction - {JsonConvert.SerializeObject(setPrizesInTransactionResult)}");
-                //var createContestResult = await CreateContest(0);
+                var createContestResult = await CreateContest(0);
 
                 return Ok(new
                 {
                     setPrizesInTransactionResult,
-                    //createContestResult
+                    createContestResult
                 });
             }
             catch (Exception ex)
@@ -824,26 +1146,26 @@ namespace Timkoto.UsersApi.Controllers
             switch (command)
             {
                 case "stop":
-                {
-                    var disableRuleRequest = new DisableRuleRequest
                     {
-                        Name = "GetLiveStats",
-                    };
+                        var disableRuleRequest = new DisableRuleRequest
+                        {
+                            Name = "GetLiveStats",
+                        };
 
-                    var disableResult = await client.DisableRuleAsync(disableRuleRequest);
-                    return Ok(disableResult);
-                }
+                        var disableResult = await client.DisableRuleAsync(disableRuleRequest);
+                        return Ok(disableResult);
+                    }
                 case "start":
-                {
-                    var enableRuleRequest = new EnableRuleRequest
                     {
-                        Name = "GetLiveStats"
-                    };
+                        var enableRuleRequest = new EnableRuleRequest
+                        {
+                            Name = "GetLiveStats"
+                        };
 
-                    var enableResult = await client.EnableRuleAsync(enableRuleRequest);
+                        var enableResult = await client.EnableRuleAsync(enableRuleRequest);
 
-                    return Ok(enableResult);
-                }
+                        return Ok(enableResult);
+                    }
             }
 
             return StatusCode(403, "No action done");

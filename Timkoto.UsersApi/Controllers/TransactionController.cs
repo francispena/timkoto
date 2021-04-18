@@ -54,10 +54,11 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var idToken = Request.Headers["x-Api-kEy"];
                 messages.AddWithTimeStamp(idToken);
-                var tokenEmail = _verifier.GetEmail(idToken);
-                if (!string.Equals(tokenEmail, request.Email, StringComparison.InvariantCultureIgnoreCase))
+                var verifyTransactionRequestResult = await _verifier.VerifyTransactionRequest(idToken, request);
+                
+                if (!verifyTransactionRequestResult)
                 {
-                    messages.AddWithTimeStamp($"Transaction failed, email did not match - {tokenEmail} and {request.Email}");
+                    messages.AddWithTimeStamp($"Transaction failed, token did not match transaction - {JsonConvert.SerializeObject(request)}");
 
                     var genericResponse =
                         GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AddTransactionFailed);

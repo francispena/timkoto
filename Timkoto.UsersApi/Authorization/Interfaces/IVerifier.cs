@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Timkoto.UsersApi.Models;
 
 namespace Timkoto.UsersApi.Authorization.Interfaces
 {
@@ -6,6 +7,6 @@ namespace Timkoto.UsersApi.Authorization.Interfaces
     {
         Task<bool> VerifyAccessToken(long Id, string accessToken);
 
-        string GetEmail(string idToken);
+        Task<bool> VerifyTransactionRequest(string idToken, AddTransactionRequest addTransactionRequest);
     }
 }

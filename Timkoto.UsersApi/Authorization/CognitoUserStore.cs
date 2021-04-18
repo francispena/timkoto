@@ -130,12 +130,12 @@ namespace Timkoto.UsersApi.Authorization
                     genericResponse =
                         GenericResponse.Create(true, HttpStatusCode.OK, Results.AuthenticationSucceeded);
 
-                    //genericResponse.Jwt = new JWToken
-                    //{
-                    //    AccessToken = authResponse.AuthenticationResult?.AccessToken,
-                    //    IdToken = authResponse.AuthenticationResult?.IdToken,
-                    //    RefreshToken = authResponse.AuthenticationResult?.RefreshToken
-                    //};
+                    genericResponse.Jwt = new JWToken
+                    {
+                        AccessToken = authResponse.AuthenticationResult?.AccessToken,
+                        IdToken = authResponse.AuthenticationResult?.IdToken,
+                        RefreshToken = authResponse.AuthenticationResult?.RefreshToken
+                    };
 
                     genericResponse.Data = new
                     {

@@ -96,7 +96,7 @@ namespace Timkoto.UsersApi.Controllers
                         IsEssential = true,
                         Expires = DateTime.Now.AddMonths(1),
                         Secure = false,
-                        Domain = "localhost"
+                        Domain = "timkoto.com"
                     });
 
                     //authenticationResult.Jwt = null;

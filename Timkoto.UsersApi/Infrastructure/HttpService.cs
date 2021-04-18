@@ -1,9 +1,13 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading.Tasks;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 
@@ -16,7 +20,8 @@ namespace Timkoto.UsersApi.Infrastructure
             var httpClientHandler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             };
 
             using var client = new HttpClient(httpClientHandler);
@@ -32,12 +37,12 @@ namespace Timkoto.UsersApi.Infrastructure
             {
                 client.DefaultRequestHeaders.Add(key, value);
             }
-
+            
             var response = await client.GetAsync(requestUri); 
 
             response.EnsureSuccessStatusCode();
             var body = await response.Content.ReadAsStringAsync();
-
+        
             return response.IsSuccessStatusCode ? JsonConvert.DeserializeObject<TResponse>(body) : default;
         }
     }
