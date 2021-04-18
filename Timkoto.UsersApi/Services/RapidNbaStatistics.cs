@@ -207,7 +207,7 @@ namespace Timkoto.UsersApi.Services
                     where not exists(
                         select 1
                     from `timkotodb`.`gamePlayer` t2
-                        where t1.teamId = t2.teamId and t1.playerId = t2.playerId and contestId = {contest.Id}
+                        where t1.playerId = t2.playerId and contestId = {contest.Id}
                         );";
 
                 var missingTeamPlayerIds = (await dbSession.CreateSQLQuery(findSql)

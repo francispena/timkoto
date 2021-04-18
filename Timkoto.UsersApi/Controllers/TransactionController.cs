@@ -55,7 +55,7 @@ namespace Timkoto.UsersApi.Controllers
                 var idToken = Request.Headers["x-Api-kEy"];
                 messages.AddWithTimeStamp(idToken);
                 var verifyTransactionRequestResult = await _verifier.VerifyTransactionRequest(idToken, request);
-                
+
                 if (!verifyTransactionRequestResult)
                 {
                     messages.AddWithTimeStamp($"Transaction failed, token did not match transaction - {JsonConvert.SerializeObject(request)}");

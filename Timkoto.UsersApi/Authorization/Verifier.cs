@@ -52,7 +52,7 @@ namespace Timkoto.UsersApi.Authorization
             var user = await _persistService.FindOne<User>(_ => _.Email == idTokenPayload.CognitoUsername);
 
             return user.OperatorId == addTransactionRequest.OperatorId &&
-                   user.AgentId == addTransactionRequest.AgentId && user.Email == addTransactionRequest.Email;
+                   user.Id == addTransactionRequest.AgentId && user.Email == addTransactionRequest.Email;
         }
     }
 }

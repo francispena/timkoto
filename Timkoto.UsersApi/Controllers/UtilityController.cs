@@ -12,6 +12,7 @@ using System.Web;
 using Amazon;
 using Amazon.CloudWatchEvents;
 using Amazon.CloudWatchEvents.Model;
+using NHibernate.Transform;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
@@ -215,16 +216,29 @@ namespace Timkoto.UsersApi.Controllers
                         {
                             player.leagues.standard.pos = "SG";
                         }
-                        players.Add(new NbaPlayer
+
+                        var playerstofind = new string[]
                         {
-                            Id = player.playerId,
-                            FirstName = player.firstName,
-                            Jersey = player.leagues.standard.jersey,
-                            LastName = player.lastName,
-                            Position = player.leagues.standard.pos,
-                            Season = "2020",
-                            TeamId = player.teamId
-                        });
+                            "AnthonyTolliver", "DeMarcusCousins", "JamesNunnally", "DewayneDedmon", "JabariParker",
+                            "TimFrazier", "RondaeHollis - Jefferson", "GaryPayton II", "DanuelHouse Jr.",
+                            "ShaquilleHarrison", "T.J.Leaf", "JordanBell", "RobertFranks", "MfionduKabengele",
+                            "ArmoniBrooks", "DontaHall", "MasonJones", "MalikFitts", "FreddieGillespie", "GabrielDeck",
+                            "JamesEnnis III"
+                        };
+
+                        if (playerstofind.Contains(player.firstName + player.lastName))
+                        {
+                            players.Add(new NbaPlayer
+                            {
+                                Id = player.playerId,
+                                FirstName = player.firstName,
+                                Jersey = player.leagues.standard.jersey,
+                                LastName = player.lastName,
+                                Position = player.leagues.standard.pos,
+                                Season = "2020",
+                                TeamId = player.teamId
+                            });
+                        }
                     }
                 }
 
@@ -427,8 +441,7 @@ namespace Timkoto.UsersApi.Controllers
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member}");
 
-            GenericResponse result;
-
+            ITransaction tx = null;
             try
             {
                 var contest = await _persistService.FindOne<Contest>(_ =>
@@ -514,7 +527,7 @@ namespace Timkoto.UsersApi.Controllers
                     }
 
                     var sqlQuery =
-                        @"SELECT n.id as playerId, o.points, o.reboundsTotal, o.assists, o.steals, o.blocks, o.turnovers FROM timkotodb.officialNbaPlayerStats o 
+                        @"SELECT n.id as playerId, o.points, o.reboundsTotal, o.assists, o.steals, o.blocks, o.turnovers, n.teamId FROM timkotodb.officialNbaPlayerStats o 
                             inner join timkotodb.nbaPlayer n 
                             on n.lastName = o.familyName and n.firstName = o.firstName
                             inner join timkotodb.nbaTeam t 
@@ -525,6 +538,7 @@ namespace Timkoto.UsersApi.Controllers
                     if (officialPlayerStats.Any())
                     {
                         var updates = new List<string>();
+                        var teamPlayerIds = new List<TeamPlayerId>();
 
                         foreach (var stats in officialPlayerStats)
                         {
@@ -549,7 +563,49 @@ namespace Timkoto.UsersApi.Controllers
 
                         var sqlUpdate = string.Join(";", updates);
                         var updateResult = await _persistService.ExecuteSql($"{sqlUpdate};");
-                        return Ok($"Update Game Player - {updateResult}");
+
+                        teamPlayerIds.AddRange(officialPlayerStats.Where(_ => _.Points != 0 || _.ReboundsTotal != 0 || _.Assists != 0 || _.Steals != 0
+                                                                              || _.Blocks != 0 || _.TurnOvers != 0).Select(_ => new TeamPlayerId
+                            { PlayerId = _.PlayerId, TeamId = _.TeamId }).ToList());
+
+                        var dbSession = _persistService.GetSession();
+
+                        tx = dbSession.BeginTransaction();
+
+                        var createTempTableSql =
+                            "CREATE TEMPORARY TABLE `timkotodb`.`tempTeamPlayerId` (`id` INT NOT NULL AUTO_INCREMENT, `teamId` VARCHAR(40) NULL, `playerId` VARCHAR(40) NULL,PRIMARY KEY(`id`));";
+
+                        await dbSession.CreateSQLQuery(createTempTableSql).ExecuteUpdateAsync();
+
+                        var sqlInsert1 = "INSERT INTO `timkotodb`.`tempTeamPlayerId` (`teamId`, `playerId`) VALUES ";
+                        var sqlValues1 = string.Join(",", teamPlayerIds.Select(_ => $"('{_.TeamId}', '{_.PlayerId}')"));
+
+                        await dbSession.CreateSQLQuery($"{sqlInsert1} {sqlValues1};").ExecuteUpdateAsync();
+
+                        var findSql = @$"select teamId, playerId
+                                    from `timkotodb`.`tempTeamPlayerId` t1
+                                        where not exists(
+                                            select 1
+                                        from `timkotodb`.`gamePlayer` t2
+                                            where t1.playerId = t2.playerId and contestId = {contest.Id}
+                                    );";
+
+                        var missingTeamPlayerIds = (await dbSession.CreateSQLQuery(findSql)
+                            .SetResultTransformer(Transformers.AliasToBean<TeamPlayerId>()).ListAsync<TeamPlayerId>()).ToList();
+
+                        await dbSession.CreateSQLQuery("DROP TABLE `timkotodb`.`tempTeamPlayerId`;").ExecuteUpdateAsync();
+
+                        await tx.CommitAsync();
+
+                        dbSession.Close();
+                        dbSession.Dispose();
+
+                        if (missingTeamPlayerIds.Any())
+                        {
+                            await FixMissingPlayers(missingTeamPlayerIds, contest.Id, messages);
+                        }
+                        
+                        return Ok($"Unmatched PlayerIds - { JsonConvert.SerializeObject(missingTeamPlayerIds)}");
                     }
                 }
 
@@ -557,13 +613,110 @@ namespace Timkoto.UsersApi.Controllers
             }
             catch (Exception ex)
             {
-                result = GenericResponse.CreateErrorResponse(ex);
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+
+                var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;
                 return StatusCode(500, result);
             }
             finally
             {
                 //TODO: logging
+            }
+        }
+
+        private async Task<string> FixMissingPlayers(List<TeamPlayerId> teamPlayerIds, long contestId, List<string> messages)
+        {
+            try
+            {
+                foreach (var teamPlayerId in teamPlayerIds)
+                {
+                    var response = await _httpService.GetAsync<RapidApiPlayers>(
+                        $"https://api-nba-v1.p.rapidapi.com/players/playerId/{teamPlayerId.PlayerId}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+
+                    if (response?.Api?.players == null)
+                    {
+                        continue;
+                    }
+
+                    if (!response.Api.players.Any())
+                    {
+                        continue;
+                    }
+
+                    var player = response.Api.players[0];
+
+                    var nbaPlayer = await _persistService.FindOne<NbaPlayer>(_ =>
+                        _.FirstName == player.firstName && _.LastName == player.lastName);
+
+                    if (nbaPlayer == null)
+                    {
+                        var sqlQuery =
+                            $@"SELECT position, fname, lname, salary, team FROM timkotodb.fdPlayers where fname = '{player.firstName}' and lname = '{player.lastName}';";
+
+                        var fdPlayers = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
+
+                        var salary = 0m;
+                        string position = null;
+                        if (fdPlayers != null && fdPlayers.Any())
+                        {
+                            salary = fdPlayers[0].Salary;
+                            position = fdPlayers[0].Position;
+                        }
+
+                        nbaPlayer = new NbaPlayer
+                        {
+                            FirstName = player.firstName,
+                            Id = player.playerId,
+                            LastName = player.lastName,
+                            Jersey = player.leagues?.standard?.jersey,
+                            Position = position ?? "XX",
+                            Salary = salary,
+                            Season = "2020",
+                            TeamId = teamPlayerId.TeamId
+                        };
+
+                        await _persistService.Save(nbaPlayer);
+                    }
+                    else
+                    {
+
+                        await _persistService.ExecuteSql(
+                            $"UPDATE `timkotodb`.`nbaPlayer` SET `id` = '{player.playerId}', `teamId` = '{teamPlayerId.TeamId}' WHERE (`id` = '{nbaPlayer.Id}');");
+                    }
+
+                    var gamePlayer = await _persistService.FindOne<GamePlayer>(_ => _.ContestId == contestId && _.TeamId == teamPlayerId.TeamId);
+
+                    if (gamePlayer == null)
+                    {
+                        continue;
+                    }
+
+                    var newGamePlayer = new GamePlayer
+                    {
+                        ContestId = contestId,
+                        GameId = gamePlayer.GameId,
+                        TeamId = teamPlayerId.TeamId,
+                        TeamLocation = gamePlayer.TeamLocation,
+                        PlayerId = teamPlayerId.PlayerId
+                    };
+
+                    await _persistService.Save(newGamePlayer);
+                }
+
+                return "success";
+            }
+            catch (Exception ex)
+            {
+                return $"GetStatsForFinishedGames error - {ex.Message}";
             }
         }
 

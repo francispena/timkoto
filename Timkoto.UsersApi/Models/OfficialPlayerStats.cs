@@ -15,5 +15,7 @@
         public int Blocks { get; set; }
 
         public int TurnOvers { get; set; }
+
+        public string TeamId { get; set; }
     }
 }

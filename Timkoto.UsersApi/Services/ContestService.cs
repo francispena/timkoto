@@ -625,7 +625,7 @@ namespace Timkoto.UsersApi.Services
                     }
                 }
 
-                var factor = .9m;
+                var factor = .2m;
                 var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent) * factor, 31000m) - packagePoints;
                 if (pointsToAdd > 0)
                 {
