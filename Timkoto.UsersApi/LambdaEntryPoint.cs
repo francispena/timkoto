@@ -60,7 +60,7 @@ namespace Timkoto.UsersApi
 
         public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
         {
-            if (request.Resource == "GetLiveStats")
+            if (request.Resource == "GetLiveStatsRapid")
             {
                 var serviceProvider = Startup.ServiceProvider;
                 var rapidNbaStatistics = serviceProvider.GetService<IRapidNbaStatistics>();
@@ -74,6 +74,22 @@ namespace Timkoto.UsersApi
                 lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
 
                 return new APIGatewayProxyResponse {StatusCode = 200};
+            }
+
+            if (request.Resource == "GetLiveStatsNba")
+            {
+                var serviceProvider = Startup.ServiceProvider;
+                var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
+
+                var getLiveStats = await officialNbaStatistics.GetLiveStats(new List<string>());
+                lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
+
+                var contestService = serviceProvider.GetService<IContestService>();
+                var rankTeams = await contestService.RankTeams(new List<string>());
+
+                lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
+                return new APIGatewayProxyResponse { StatusCode = 200 };
             }
 
             if (request.Resource == "WarmingLambda")

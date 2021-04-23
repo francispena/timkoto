@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -45,7 +44,7 @@ namespace Timkoto.UsersApi.Services
             return genericResponse;
         }
 
-        public async Task<GenericResponse> GetContestAgents(long operatorId, string gameDate,  List<string> messages)
+        public async Task<GenericResponse> GetContestAgents(long operatorId, string gameDate, List<string> messages)
         {
             GenericResponse genericResponse;
 
@@ -133,9 +132,46 @@ namespace Timkoto.UsersApi.Services
             genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayersFound);
 
-            genericResponse.Data = new { Players = players};
+            genericResponse.Data = new { Players = players };
 
             return genericResponse;
+        }
+
+        public async Task<List<ContestAgentPointsForDownload>> GetContestAgentsForDownload(long operatorId, string gameDate, List<string> messages)
+        {
+            GenericResponse genericResponse;
+
+            var contest = await _persistService.FindOne<Contest>(_ => _.GameDate == gameDate);
+            if (contest == null)
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.GameNotFound);
+
+                return null;
+            }
+
+            var sqlQuery =
+                $@"select c.gameDate, ou.userName as OperatorName,  u.UserName as AgentName, sum(pt.amount) as Collection, sum(pt.amount - pt.agentCommission) as Remit, sum(pt.agentCommission) as Commission, sum(pt.prize) as Prize 
+	                    from 
+	                    playerTeam pt 
+                        inner join timkotodb.user u
+	                    on pt.agentId = u.id
+                        inner join timkotodb.user ou
+	                    on pt.operatorId = ou.id
+                        inner join timkotodb.contest c
+                        on c.id = pt.contestId
+	                    where pt.contestId = '{contest.Id}' and pt.operatorId = '{operatorId}'
+	                    group by pt.agentId, u.email, u.userName, pt.contestId, pt.operatorId 
+	                    order by u.userName;";
+
+            var contestAgentCollection = await _persistService.SqlQuery<ContestAgentPointsForDownload>(sqlQuery);
+
+            if (contestAgentCollection == null || !contestAgentCollection.Any())
+            {
+                return null;
+            }
+
+            return contestAgentCollection;
         }
     }
 }

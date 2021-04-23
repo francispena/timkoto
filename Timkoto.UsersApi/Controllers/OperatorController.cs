@@ -9,6 +9,8 @@ using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
+using System.IO;
+using System.Linq;
 
 namespace Timkoto.UsersApi.Controllers
 {
@@ -119,6 +121,50 @@ namespace Timkoto.UsersApi.Controllers
                 result = GenericResponse.CreateErrorResponse(ex);
 
                 return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
+
+        [Route("ContestPoints/{operatorId}/{gameDate}")]
+        [HttpGet]
+        public async Task<IActionResult> GetContestAgentsForDownload([FromRoute] long operatorId, [FromRoute] string gameDate)
+        {
+            var member = $"{_className}.GetContestAgentsForDownload";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - operatorId:{operatorId}/gameDate:{gameDate}");
+
+            try
+            {
+                var contestAgentPointsForDownload = await _operatorService.GetContestAgentsForDownload(operatorId, gameDate, messages);
+
+                var header = "GameDate,OperatorName,AgentName,Collection,Remit,Commission,Prize";
+                var rows = string.Join("\r\n", contestAgentPointsForDownload.Select(_ => $"{_.GameDate},{_.OperatorName},{_.AgentName},{_.Collection},{_.Remit},{_.Commission},{_.Prize}"));
+                var csv = $"{header}\r\n{rows}";
+
+                var stream = new MemoryStream();
+                var writer = new StreamWriter(stream);
+                writer.Write(csv);
+                writer.Flush();
+                stream.Position = 0;
+
+                var fileName = $"{contestAgentPointsForDownload[0].OperatorName}_{gameDate}.csv";
+                var mimeType = "application/csv";
+              
+                return new FileStreamResult(stream, mimeType)
+                {
+                    FileDownloadName = fileName
+                };
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                return StatusCode(500, ex.Message);
             }
             finally
             {
