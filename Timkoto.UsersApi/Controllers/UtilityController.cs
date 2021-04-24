@@ -466,6 +466,16 @@ namespace Timkoto.UsersApi.Controllers
                     return Ok("No game schedule");
                 }
 
+                if (contest.ContestState == ContestState.Upcoming)
+                {
+                    contest.ContestState = ContestState.Ongoing;
+                    var updateContestResult = await _persistService.Update(contest);
+                    if (!updateContestResult)
+                    {
+                        return Ok("Update contest to Ongoing failed.");
+                    }
+                }
+
                 var sqlInsert =
                     "INSERT INTO `timkotodb`.`officialNbaPlayerStats` (`personId`, `teamId`, `teamName`, `location`, `firstName`, `familyName`, `points`, `assists`, `blocks`, `steals`, `reboundsTotal`, `turnovers`) VALUES ";
                 var sqlValues = new List<string>();

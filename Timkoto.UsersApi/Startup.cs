@@ -116,7 +116,8 @@ namespace Timkoto.UsersApi
             services.AddSingleton<IAppConfig>(_ => new AppConfig(_isProd));
             services.AddTransient<IVerifier, Verifier>();
             services.AddTransient<ILogger, Logger>();
-
+            services.AddTransient<IOfficialNbaStatistics, OfficialNbaStatistics>();
+            
             services.AddResponseCompression(options =>
             {
                 options.Providers.Add<BrotliCompressionProvider>();
