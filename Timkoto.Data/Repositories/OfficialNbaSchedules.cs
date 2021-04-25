@@ -45,5 +45,8 @@ namespace Timkoto.Data.Repositories
 
         [Property(Name = "VisitorTeamName", Column = "visitorTeamName", TypeType = typeof(string), Length = 60)]
         public virtual string VisitorTeamName { get; set; }
+
+        [Property(Name = "Finished", Column = "finished", TypeType = typeof(bool), Index = "finished_ix")]
+        public virtual bool Finished { get; set; }
     }
 }

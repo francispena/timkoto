@@ -47,7 +47,7 @@ namespace Timkoto.UsersApi.Services
                 var estNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, easternZone);
 
                 var schedules =
-                    await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate && _.GameDateTimeEst < estNow);
+                    await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate && _.Finished == false && _.GameDateTimeEst < estNow);
 
                 if (!schedules.Any())
                 {
@@ -103,6 +103,12 @@ namespace Timkoto.UsersApi.Services
 
                             sqlValues.Add($"('{player.personId}', '{response.game.homeTeam.teamId}', '{response.game.homeTeam.teamName.Replace("'", "''")}', 'Home', '{player.firstName.Replace("'", "''")}', '{player.familyName.Replace("'", "''")}', '{player.statistics.points}', '{player.statistics.assists}', '{player.statistics.blocks}', '{player.statistics.steals}', '{player.statistics.reboundsTotal}', '{player.statistics.turnovers}')");
                         }
+                    }
+
+                    if (string.Equals(response.game.gameStatusText, "Final", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        schedule.Finished = true;
+                        await _persistService.Update(schedule);
                     }
                 }
 

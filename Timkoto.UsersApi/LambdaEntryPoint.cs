@@ -11,6 +11,9 @@ using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Timkoto.UsersApi.Services.Interfaces;
+using Timkoto.Data.Services.Interfaces;
+using Timkoto.Data.Repositories;
+using Timkoto.Data.Enumerations;
 
 namespace Timkoto.UsersApi
 {
@@ -88,6 +91,28 @@ namespace Timkoto.UsersApi
                 var rankTeams = await contestService.RankTeams(new List<string>());
 
                 lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
+                //process if all games completed
+                var _persistService = serviceProvider.GetService<IPersistService>();
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                if (contest == null)
+                {
+                    return new APIGatewayProxyResponse { StatusCode = 200 };
+                }
+
+                var allContestGames = await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate);
+                if (allContestGames.Any())
+                {
+                    var allComplete = allContestGames.All(_ => _.Finished == true);
+                    if (allContestGames.Any() && allComplete)
+                    {
+                        var messages = new List<string>();
+                        var _contestService = serviceProvider.GetService<IContestService>();
+                        await _contestService.SetPrizes(messages);
+                        await _contestService.SetPrizesInTransaction(messages);
+                        await _contestService.CreateContest(0, messages);
+                    }
+                }
 
                 return new APIGatewayProxyResponse { StatusCode = 200 };
             }

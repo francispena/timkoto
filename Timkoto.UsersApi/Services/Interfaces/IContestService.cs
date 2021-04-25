@@ -28,5 +28,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
             List<ContestPrizePool> contestPrizePool);
 
         Task<string> SetPrizesInTransaction(List<string> messages);
+
+        Task<string> CreateContest(int offsetDays, List<string> messages);
     }
 }

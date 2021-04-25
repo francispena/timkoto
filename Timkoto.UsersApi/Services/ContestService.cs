@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
 using Timkoto.UsersApi.Enumerations;
+using Timkoto.UsersApi.Extensions;
+using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
 
@@ -22,9 +25,12 @@ namespace Timkoto.UsersApi.Services
     {
         private readonly IPersistService _persistService;
 
-        public ContestService(IPersistService persistService)
+        private readonly IHttpService _httpService;
+
+        public ContestService(IPersistService persistService, IHttpService httpService)
         {
             _persistService = persistService;
+            _httpService = httpService;
         }
 
         public async Task<GenericResponse> GetGames(long contestId, List<string> messages)
@@ -180,7 +186,7 @@ namespace Timkoto.UsersApi.Services
                 TeamName = request.LineUpTeam.TeamName,
                 LineupHash = hash,
                 Amount = contestPackage.EntryPoints,
-                AgentCommission = contestPackage.EntryPoints * 0.07m
+                AgentCommission = contestPackage.EntryPoints * 0.1m
             };
 
             var dbSession = _persistService.GetSession();
@@ -605,7 +611,7 @@ namespace Timkoto.UsersApi.Services
         {
             string sqlQuery;
             const decimal operationsCost = 1000m;
-            const decimal agentCommssionPercent = 0.07m;
+            const decimal agentCommssionPercent = 0.1m;
 
             sqlQuery =
                 $@"SELECT sum(amount) as points FROM timkotodb.playerTeam where contestId = '{contestId}' && operatorId = '{operatorId}';";
@@ -625,7 +631,7 @@ namespace Timkoto.UsersApi.Services
                     }
                 }
 
-                var factor = .2m;
+                var factor = .7m;
                 var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent) * factor, 31000m) - packagePoints;
                 if (pointsToAdd > 0)
                 {
@@ -796,6 +802,194 @@ namespace Timkoto.UsersApi.Services
             };
 
             return genericResponse;
+        }
+
+        public async Task<string> CreateContest(int offsetDays, List<string> messages)
+        {
+            
+            ITransaction tx = null;
+
+            try
+            {
+                TimeZoneInfo easternZone = null;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                }
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+                }
+
+                if (easternZone == null)
+                {
+                    return "No timezone found";
+                }
+
+                var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow.AddDays(offsetDays), easternZone);
+                var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
+
+                var contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
+
+                if (contestToCheck != null)
+                {
+                    dayOfGamesToGet = today.AddDays(1).ToString("yyyy-MM-dd");
+                    contestToCheck = await _persistService.FindOne<Contest>(_ => _.GameDate == dayOfGamesToGet);
+                }
+
+                if (contestToCheck != null)
+                {
+                    return $"Contest for the day {dayOfGamesToGet} exists.";
+                }
+
+                var gameDates = new[]
+                {
+                    today.ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().AddDays(1).ToString("yyyy-MM-dd"),
+                    today.ToUniversalTime().AddDays(2).ToString("yyyy-MM-dd")
+                };
+
+                var games = new List<RapidApiGamesGame>();
+
+                foreach (var gameDate in gameDates)
+                {
+                    var response = await _httpService.GetAsync<RapidApiGames>(
+                        $"https://api-nba-v1.p.rapidapi.com/games/date/{gameDate}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC, easternZone) == dayOfGamesToGet));
+                }
+
+                if (!games.Any())
+                {
+                    return $"No Game Found for {dayOfGamesToGet}";
+                }
+
+                var contest = new Contest
+                {
+                    GameDate = dayOfGamesToGet,
+                    Sport = "Basketball",
+                    ContestState = ContestState.Upcoming,
+                    SalaryCap = 60000
+                };
+
+                var operators =
+                    await _persistService.FindMany<User>(_ => _.IsActive && _.UserType == UserType.Operator);
+
+                var dbSession = _persistService.GetSession();
+                tx = dbSession.BeginTransaction();
+
+                await dbSession.SaveAsync(contest);
+
+                var dbGames = new List<Game>();
+                foreach (var game in games)
+                {
+                    dbGames.Add(new Game
+                    {
+                        ContestId = contest.Id,
+                        HTeamId = game.hTeam.teamId,
+                        VTeamId = game.vTeam.teamId,
+                        Id = game.gameId,
+                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
+                        Finished = false
+                    });
+                }
+
+                var sqlInsert =
+                    "INSERT INTO `game` (`id`,`contestId`,`hTeamId`,`vTeamId`,`startTime`) VALUES ";
+                var sqlValues =
+                    string.Join(",", dbGames.Select(_ => $"('{_.Id}', {_.ContestId}, '{_.HTeamId}', '{_.VTeamId}', convert_tz('{_.StartTime:u}', '+00:00', '+00:00'))"));
+
+                await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
+
+                var hPlayers = new List<NbaPlayer>();
+                var vPlayers = new List<NbaPlayer>();
+
+                foreach (var dbGame in dbGames)
+                {
+                    hPlayers.AddRange(await _persistService.FindMany<NbaPlayer>(_ => _.TeamId == dbGame.HTeamId));
+                    vPlayers.AddRange(await _persistService.FindMany<NbaPlayer>(_ => _.TeamId == dbGame.VTeamId));
+                }
+
+                //get home players
+                var gamePlayers = hPlayers.Select(hPlayer => new GamePlayer
+                {
+                    ContestId = contest.Id,
+                    GameId = dbGames.First(_ => _.HTeamId == hPlayer.TeamId && _.ContestId == contest.Id).Id,
+                    TeamId = hPlayer.TeamId,
+                    PlayerId = hPlayer.Id,
+                    TeamLocation = LocationType.Home,
+                    Salary = hPlayer.Salary
+                }).ToList();
+
+                //get visitor players
+                gamePlayers.AddRange(
+                    vPlayers.Select(vPlayer => new GamePlayer
+                    {
+                        ContestId = contest.Id,
+                        GameId = dbGames.First(_ => _.VTeamId == vPlayer.TeamId && _.ContestId == contest.Id).Id,
+                        TeamId = vPlayer.TeamId,
+                        PlayerId = vPlayer.Id,
+                        TeamLocation = LocationType.Visitor,
+                        Salary = vPlayer.Salary
+                    }).ToList()
+                );
+
+                sqlInsert =
+                    "INSERT INTO `gamePlayer` (`contestId`,`GameId`,`teamId`,`teamLocation`,`playerId`,`salary`) VALUES ";
+                sqlValues =
+                    string.Join(",", gamePlayers.Select(_ => $"({_.ContestId},'{_.GameId}','{_.TeamId}','{_.TeamLocation}','{_.PlayerId}','{_.Salary}')"));
+
+                await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
+
+                foreach (var @operator in operators)
+                {
+                    var contestPool = new ContestPool
+                    {
+                        ContestId = contest.Id,
+                        OperatorId = @operator.Id,
+                        ContestPrizeId = 1
+                    };
+
+                    await dbSession.SaveAsync(contestPool);
+                }
+
+                await tx.CommitAsync();
+
+                return "Success";
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+
+                messages.AddWithTimeStamp($"CreateContest exception - {JsonConvert.SerializeObject(ex)}");
+                
+                return ex.Message;
+            }
+            finally
+            {
+                if (tx != null )
+                {
+                    tx.Dispose();
+                }
+            }
+        }
+
+        private string ToStringDayDate(DateTime dateNoTimeZone, TimeZoneInfo easternZone)
+        {
+            var utcDate = TimeZoneInfo.ConvertTimeToUtc(dateNoTimeZone);
+
+            var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
+
+            return today.ToString("yyyy-MM-dd");
         }
     }
 }

@@ -614,7 +614,7 @@ namespace Timkoto.UsersApi.Controllers
                         {
                             await FixMissingPlayers(missingTeamPlayerIds, contest.Id, messages);
                         }
-                        
+
                         return Ok($"Unmatched PlayerIds - { JsonConvert.SerializeObject(missingTeamPlayerIds)}");
                     }
                 }
@@ -998,6 +998,7 @@ namespace Timkoto.UsersApi.Controllers
             {
                 var result = await _contestService.RankTeams(new List<string>());
                 messages.AddWithTimeStamp($"_contestService.RankTeams - {JsonConvert.SerializeObject(result)}");
+
                 return Ok(result);
             }
             catch (Exception ex)
