@@ -9,5 +9,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<bool> SendRegistrationLink(string emailAddress, string regLink, List<string> messages);
 
         Task<bool> SendPasswordResetCode(User user, List<string> messages);
+
+        Task<bool> SendActivationLink(string emailAddress, string activationLink, string userName, List<string> messages);
     }
 }

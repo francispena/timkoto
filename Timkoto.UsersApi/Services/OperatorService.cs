@@ -116,7 +116,7 @@ namespace Timkoto.UsersApi.Services
                     inner join timkotodb.user ua
                     on ua.id = pt.agentId
                     where pt.operatorId = '{operatorId}' and pt.contestId = '{contest.Id}'
-                    group by pt.userId, pt.teamName,ua.userName
+                    group by pt.userId, ua.userName, u.userName
                     order by ua.userName, u.userName;";
 
             var players = await _persistService.SqlQuery<ContestOperatorPlayer>(sqlQuery);

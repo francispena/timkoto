@@ -167,6 +167,20 @@ namespace Timkoto.UsersApi.Models
                     return "User information failed, please contact your agent.";
                 case Results.InvalidNumberOfPlayersInPosition:
                     return "Invalid number of players in position.";
+                case Results.InvalidActivationCode:
+                    return "Invalid activation code.";
+                case Results.AccountAlreadyActivated:
+                    return "Account was already activated.";
+                case Results.AccountActivationSucceeded:
+                    return "Account activation succeeded.";
+                case Results.AccountActivationFailed:
+                    return "Account activation failed.";
+                case Results.AccountNotYetActivated:
+                    return "Account is not yet active.";
+                case Results.NewUserCreatedActivationRequired:
+                    return "New user created with activation required.";
+                case Results.AccountIsNotYetActivated:
+                    return "Account is not yet activated.";
             }
 
             return "";

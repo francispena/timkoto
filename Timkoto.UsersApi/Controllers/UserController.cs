@@ -303,6 +303,37 @@ namespace Timkoto.UsersApi.Controllers
                 _logger.Log(member, messages, logType);
             }
         }
-        
+
+        [Route("activate")]
+        [HttpPost]
+        public async Task<IActionResult> Activate([FromBody] ActivateRequest request)
+        {
+            var member = $"{_className}.Activate";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - {JsonConvert.SerializeObject(request)}");
+
+            GenericResponse result;
+
+            try
+            {
+                result = await _userService.Activate(request, messages);
+                messages.AddWithTimeStamp($"_userService.Activate - {JsonConvert.SerializeObject(result)}");
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
     }
 }

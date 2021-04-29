@@ -11,5 +11,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<GenericResponse> CheckUserName(AddUserRequest request, List<string> messages);
 
         Task<GenericResponse> UpdateUser(UpdateUserRequest request, List<string> messages);
+
+        Task<GenericResponse> Activate(ActivateRequest request, List<string> messages);
     }
 }

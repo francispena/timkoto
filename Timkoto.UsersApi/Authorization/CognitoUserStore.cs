@@ -37,10 +37,6 @@ namespace Timkoto.UsersApi.Authorization
 
         public async Task<Results> CreateAsync(string email, string password, List<string> messages)
         {
-            var lambdaContext = Startup.LambdaContext;
-
-            lambdaContext.Logger.Log("CreateAsync");
-
             var retVal = Results.Unknown;
             try
             {
@@ -93,7 +89,6 @@ namespace Timkoto.UsersApi.Authorization
             finally
             {
                 messages.Add($"retVal - {retVal}");
-                lambdaContext?.Logger.Log(string.Join("\r\n", messages));
             }
 
             return retVal;
@@ -113,6 +108,20 @@ namespace Timkoto.UsersApi.Authorization
                         Results.AuthenticationError);
                 }
                 
+                if (!userDb.IsActive)
+                {
+                    return GenericResponse.Create(false, HttpStatusCode.Forbidden,
+                        Results.AccountIsNotYetActivated);
+                }
+
+                var configuration = Startup.Configuration;
+                var promoAgentId = long.Parse(configuration["PromoAgentId"]);
+
+                if (!userDb.IsActive && userDb.AgentId == promoAgentId && !string.IsNullOrWhiteSpace(userDb.AccessToken))
+                {
+                    return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.AccountNotYetActivated);
+                }
+
                 var userPool = new CognitoUserPool(_userPoolId, _clientId, _providerClient);
                 var user = new CognitoUser(email, _clientId, userPool, _providerClient);
 

@@ -65,6 +65,13 @@
         NoTokenFound,
         UserInfoUpdated,
         UserInfoUpdateFailed,
-        InvalidNumberOfPlayersInPosition
+        InvalidNumberOfPlayersInPosition,
+        InvalidActivationCode,
+        AccountAlreadyActivated,
+        AccountActivationFailed,
+        AccountActivationSucceeded,
+        AccountNotYetActivated,
+        NewUserCreatedActivationRequired,
+        AccountIsNotYetActivated
     }
 }
