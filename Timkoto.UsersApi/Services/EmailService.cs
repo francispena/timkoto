@@ -137,7 +137,7 @@ namespace Timkoto.UsersApi.Services
                        $"<p><a href='{activationLink}'>{activationLink}</a></p>" +
                        "<br>" +
                        "<p>If the link doesn't work, copy the link and paste it into your browser's address bar.</p>" +
-                       "<p>Please do not reply directly to this email. Should you have any questions or clarifications please reach out to your agent.</p>" +
+                       "<p>Please do not reply directly to this email. Should you have any questions or clarifications please message us in Facebook Timkoto page.</p>" +
                        "<br>" +
                        "<p>Thank you.</p>" +
                        "<p>Your Team!!!</p>" +
