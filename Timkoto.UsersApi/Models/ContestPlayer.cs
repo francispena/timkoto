@@ -14,6 +14,8 @@
 
         public decimal Salary { get; set; }
 
+        public decimal Fppg { get; set; }
+
         public bool Selected { get; set; }
     }
 }

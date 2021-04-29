@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NHibernate;
@@ -31,11 +32,18 @@ namespace Timkoto.UsersApi.Services
             try
             {
                 var contest = await _persistService.FindOne<Contest>(_ =>
-                    _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+                                  _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
 
                 if (contest == null)
                 {
-                    return "No Ongoing or Upcoming contest.";
+                    return "No ongoing contest";
+                }
+
+                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false && _.StartTime < DateTime.UtcNow);
+
+                if (!games.Any())
+                {
+                    return "No game schedule";
                 }
 
                 if (contest.ContestState == ContestState.Upcoming)
@@ -48,12 +56,8 @@ namespace Timkoto.UsersApi.Services
                     }
                 }
 
-                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
-
-                if (!games.Any())
-                {
-                    return "No live results.";
-                }
+                var gameIds = games.Select(_ => _.Id).ToList();
+                var teamPlayerIds = new List<TeamPlayerId>();
 
                 foreach (var game in games)
                 {
@@ -118,7 +122,7 @@ namespace Timkoto.UsersApi.Services
                     {
                         continue;
                     }
-
+                    
                     if (string.Equals(gameDetails.Api?.games[0]?.statusGame, "Finished", StringComparison.CurrentCultureIgnoreCase))
                     {
                         await _persistService.ExecuteSql($"UPDATE `timkotodb`.`game` SET `finished` = '1' WHERE (`id` = '{gameId}');");
@@ -133,17 +137,48 @@ namespace Timkoto.UsersApi.Services
             }
         }
 
-        public async Task<string> GetFinalStats(List<string> messages)
+        public async Task<string> GetLiveStats2(List<string> messages)
         {
             try
             {
-                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                var contest = await _persistService.FindOne<Contest>(_ =>
+                                   _.ContestState == ContestState.Ongoing || _.ContestState == ContestState.Upcoming);
+
                 if (contest == null)
                 {
                     return "No ongoing contest";
                 }
 
-                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
+                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false);
+                if (!games.Any())
+                {
+                    return "No game schedule";
+                }
+
+                var firstGameTime = games.OrderBy(_ => _.StartTime).First();
+                
+                if (contest.ContestState == ContestState.Upcoming && firstGameTime.StartTime.Subtract(DateTime.UtcNow).TotalHours < 1)
+                {
+                    await UpdateGameIds(messages);
+                }
+
+                games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false && _.StartTime < DateTime.UtcNow);
+
+                if (!games.Any())
+                {
+                    return "No game schedule";
+                }
+
+                if (contest.ContestState == ContestState.Upcoming)
+                {
+                    contest.ContestState = ContestState.Ongoing;
+                    var updateContestResult = await _persistService.Update(contest);
+                    if (!updateContestResult)
+                    {
+                        return "Update contest to Ongoing failed.";
+                    }
+                }
+
                 var gameIds = games.Select(_ => _.Id).ToList();
                 var teamPlayerIds = new List<TeamPlayerId>();
 
@@ -188,6 +223,23 @@ namespace Timkoto.UsersApi.Services
                     teamPlayerIds.AddRange(response.api.statistics.Where(_ => _.points != "0" || _.totReb != "0" || _.assists != "0" || _.steals != "0"
                                                                               || _.blocks != "0" || _.turnovers != "0").Select(_ => new TeamPlayerId
                     { PlayerId = _.playerId, TeamId = _.teamId }).ToList());
+
+                    var gameDetails = await _httpService.GetAsync<RapidApiGames>($"https://api-nba-v1.p.rapidapi.com/games/gameId/{gameId}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+
+                    if (gameDetails?.Api?.games == null || !gameDetails.Api.games.Any())
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(gameDetails.Api?.games[0]?.statusGame, "Finished", StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        await _persistService.ExecuteSql($"UPDATE `timkotodb`.`game` SET `finished` = '1' WHERE (`id` = '{gameId}');");
+                    }
                 }
 
                 var dbSession = _persistService.GetSession();
@@ -418,6 +470,126 @@ namespace Timkoto.UsersApi.Services
 
                 return $"GetStatsForFinishedGames error - {ex.Message}";
             }
+        }
+
+        public async Task<string> UpdateGameIds(List<string> messages)
+        {
+            ITransaction tx = null;
+            var dbSession = _persistService.GetSession();
+
+            try
+            {
+                var utcDate = DateTime.UtcNow;
+
+                var gameDates = new[]
+                {
+                    utcDate.AddDays(-2).ToString("yyyy-MM-dd"),
+                    utcDate.AddDays(-1).ToString("yyyy-MM-dd"),
+                    utcDate.ToString("yyyy-MM-dd"),
+                    utcDate.AddDays(1).ToString("yyyy-MM-dd"),
+                };
+
+                TimeZoneInfo easternZone = null;
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                }
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+                }
+
+                if (easternZone == null)
+                {
+                    return "TimeZoneLookUpError";
+                }
+
+                var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
+                var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
+
+                var games = new List<RapidApiGamesGame>();
+
+                foreach (var gameDate in gameDates)
+                {
+                    var response = await _httpService.GetAsync<RapidApiGames>(
+                        $"https://api-nba-v1.p.rapidapi.com/games/date/{gameDate}",
+                        new Dictionary<string, string>
+                        {
+                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
+                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
+                        });
+                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC, easternZone) == dayOfGamesToGet));
+                }
+
+                if (!games.Any())
+                {
+                    return  $"No Game Found for {dayOfGamesToGet}";
+                }
+
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState != ContestState.Finished);
+
+                if (contest == null)
+                {
+                    return  "No contest Found";
+                }
+
+                var dbGames = new List<Game>();
+                foreach (var game in games)
+                {
+                    dbGames.Add(new Game
+                    {
+                        ContestId = contest.Id,
+                        HTeamId = game.hTeam.teamId,
+                        VTeamId = game.vTeam.teamId,
+                        Id = game.gameId,
+                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
+                        Finished = false
+                    });
+                }
+
+                var sqlUpdateGame =
+                    string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
+
+                var sqlUpdateHomeGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.VTeamId}' and teamLocation = 'Visitor')"));
+                var sqlUpdateVisitorGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.HTeamId}' and teamLocation = 'Home')"));
+
+                tx = dbSession.BeginTransaction();
+
+                await dbSession.CreateSQLQuery(sqlUpdateGame + ";").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateHomeGamePlayer + ";").ExecuteUpdateAsync();
+                await dbSession.CreateSQLQuery(sqlUpdateVisitorGamePlayer + ";").ExecuteUpdateAsync();
+
+                await tx.CommitAsync();
+                dbSession.Close();
+                dbSession.Dispose();
+
+                return "Ok";
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                    dbSession.Close();
+                    dbSession.Dispose();
+                }
+
+                return ex.Message;
+            }
+            finally
+            {
+                
+            }
+        }
+
+        private string ToStringDayDate(DateTime dateNoTimeZone, TimeZoneInfo easternZone)
+        {
+            var utcDate = TimeZoneInfo.ConvertTimeToUtc(dateNoTimeZone);
+
+            var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
+
+            return today.ToString("yyyy-MM-dd");
         }
     }
 }

@@ -9,6 +9,7 @@ using NHibernate.Transform;
 using Timkoto.Data.Enumerations;
 using Timkoto.Data.Repositories;
 using Timkoto.Data.Services.Interfaces;
+using Timkoto.UsersApi.Extensions;
 using Timkoto.UsersApi.Infrastructure.Interfaces;
 using Timkoto.UsersApi.Models;
 using Timkoto.UsersApi.Services.Interfaces;
@@ -324,5 +325,89 @@ namespace Timkoto.UsersApi.Services
             }
         }
 
+        public async Task<string> GetLeagueStats(List<string> messages)
+        {
+            ITransaction tx = null;
+            try
+            {
+                var response = await _httpService.GetAsync<NbaApiLeagueStats>("https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=PerGame&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2020-21&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight=",
+                    new Dictionary<string, string>
+                    {
+                        {"Host", "stats.nba.com"},
+                        {"Connection", "keep-alive"},
+                        {
+                            "sec-ch-ua",
+                            "\"Google Chrome\";v=\"89\", \"Chromium\";v=\"89\",\";Not A Brand\";v=\"99\""
+                        },
+                        {"sec-ch-ua-mobile", "?0"},
+                        {
+                            "User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36"
+                        },
+                        {"Accept", "*/*"},
+                        {"Origin", "https://www.nba.com"},
+                        {"Referer", "https://www.nba.com/"},
+                        {"Accept-Encoding", "gzip, deflate, br"},
+                        {"Accept-Language", "en-US,en;q=0.9,fil-PH;q=0.8,fil;q=0.7"},
+                        {"x-nba-stats-origin", "stats"},
+                        {"x-nba-stats-token", "true"}
+                    });
+
+
+                if (response == null || !response.resultSets.Any())
+                {
+                    return "No Data";
+                }
+                
+                messages.AddWithTimeStamp("response OK");
+
+                var insertSql = "INSERT INTO `timkotodb`.`officialNbaLeagueStats` (`personId`, `playerName`, `teamId`, `TeamAbbreviation`, `fantasyPoints`, `fantasyRank`) VALUES ";
+
+                var valuesSql = string.Join(",", response.resultSets[0].rowSet.Select(_ => $"('{(long)_[0]}', '{((string)_[1]).Replace("'","''")}', '{(long)_[2]}', '{(string)_[3]}', '{(double)_[31]}', '{(long)_[60]}')"));
+
+                var dbSession = _persistService.GetSession();
+
+                tx = dbSession.BeginTransaction();
+
+                await dbSession.CreateSQLQuery("TRUNCATE `timkotodb`.`officialNbaLeagueStats`").ExecuteUpdateAsync();
+                messages.AddWithTimeStamp("TRUNCATE `timkotodb`.`officialNbaLeagueStats`");
+
+                await dbSession.CreateSQLQuery($"{insertSql}{valuesSql}").ExecuteUpdateAsync();
+                messages.AddWithTimeStamp("{insertSql}{valuesSql}");
+
+                await dbSession.CreateSQLQuery("UPDATE timkotodb.nbaPlayer n SET fppg = (select fantasyPoints FROM timkotodb.officialNbaLeagueStats o where o.playerName = concat(n.firstName, ' ', n.LastName))").ExecuteUpdateAsync();
+                messages.AddWithTimeStamp("UPDATE timkotodb.nbaPlayer n SET fppg");
+
+                await tx.CommitAsync();
+                messages.AddWithTimeStamp("tx.CommitAsync");
+
+                //foreach (var rowSet in response.resultSets[0].rowSet)
+                //{
+                //    var playerId = (long)rowSet[0];
+                //    var playerName = (string)rowSet[1];
+                //    var teamId = (long)rowSet[2];
+                //    var teamAbbrev = (string)rowSet[3];
+                //    var fantasyPoints = (double)rowSet[31];
+                //    var fantasyRank = (long)rowSet[60];
+                //}
+
+                return "OK";
+            }
+            catch (Exception ex)
+            {
+                if (tx != null && tx.IsActive)
+                {
+                    await tx.RollbackAsync();
+                }
+
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return ex.Message;
+            }
+            finally
+            {
+                //TODO: logging
+            }
+        }
     }
 }

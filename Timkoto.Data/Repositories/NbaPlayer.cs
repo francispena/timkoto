@@ -32,6 +32,10 @@ namespace Timkoto.Data.Repositories
             Index = "salary_ix", NotNull = true)]
         public virtual decimal Salary { get; set; }
 
+        [Property(Name = "Fppg", Column = "fppg", TypeType = typeof(decimal), Scale = 2, Precision = 10,
+            Index = "fppg_ix")]
+        public virtual decimal Fppg { get; set; }
+
         [Property(Name = "Season", Column = "season", TypeType = typeof(string), Length = 5,
             Index = "season_ix", NotNull = true)]
         public virtual string Season { get; set; }

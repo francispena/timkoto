@@ -45,9 +45,11 @@ namespace Timkoto.UsersApi.Controllers
 
         private readonly string _className = "UtilityController";
 
+        private readonly IOfficialNbaStatistics _officialNbaStatistics;
+
         public UtilityController(IHttpService httpService, IPersistService persistService,
             IRapidNbaStatistics rapidNbaStatistics, IContestService contestService,
-            ITransactionService transactionService, ICognitoUserStore cognitoUserStore, ILogger logger)
+            ITransactionService transactionService, ICognitoUserStore cognitoUserStore, ILogger logger, IOfficialNbaStatistics officialNbaStatistics)
         {
             _httpService = httpService;
             _persistService = persistService;
@@ -56,6 +58,7 @@ namespace Timkoto.UsersApi.Controllers
             _transactionService = transactionService;
             _cognitoUserStore = cognitoUserStore;
             _logger = logger;
+            _officialNbaStatistics = officialNbaStatistics;
         }
 
         [Route("CheckHealth")]
@@ -638,6 +641,33 @@ namespace Timkoto.UsersApi.Controllers
             }
         }
 
+        [Route("GetOfficialNbaLeagueStats")]
+        [HttpGet]
+        public async Task<IActionResult> GetOfficialNbaLeagueStats()
+        {
+            var member = $"{_className}.GetOfficialNbaLeagueStats";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member}");
+                        
+            try
+            {
+                var result = await _officialNbaStatistics.GetLeagueStats(messages);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                var result = GenericResponse.CreateErrorResponse(ex);
+                result.Data = messages;
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
+
         private async Task<string> FixMissingPlayers(List<TeamPlayerId> teamPlayerIds, long contestId, List<string> messages)
         {
             try
@@ -966,7 +996,7 @@ namespace Timkoto.UsersApi.Controllers
 
             try
             {
-                var result = await _rapidNbaStatistics.GetFinalStats(new List<string>());
+                var result = await _rapidNbaStatistics.GetLiveStats2(new List<string>());
                 messages.AddWithTimeStamp($"_rapidNbaStatistics.GetFinalStats - {JsonConvert.SerializeObject(result)}");
                 return Ok(result);
             }
@@ -1091,111 +1121,16 @@ namespace Timkoto.UsersApi.Controllers
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member}");
 
-            ITransaction tx = null;
-            var dbSession = _persistService.GetSession();
-
             try
             {
-                var utcDate = DateTime.UtcNow;
+                var result  = await _rapidNbaStatistics.UpdateGameIds(messages);
 
-                var gameDates = new[]
-                {
-                    utcDate.AddDays(-2).ToString("yyyy-MM-dd"),
-                    utcDate.AddDays(-1).ToString("yyyy-MM-dd"),
-                    utcDate.ToString("yyyy-MM-dd"),
-                    utcDate.AddDays(1).ToString("yyyy-MM-dd"),
-                };
-
-                TimeZoneInfo easternZone = null;
-
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-                }
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    easternZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-                }
-
-                if (easternZone == null)
-                {
-                    var genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TimeZoneLookUpError);
-                    return StatusCode(403, genericResponse);
-                }
-
-                var today = TimeZoneInfo.ConvertTimeFromUtc(utcDate, easternZone);
-                var dayOfGamesToGet = today.ToString("yyyy-MM-dd");
-
-                var games = new List<RapidApiGamesGame>();
-
-                foreach (var gameDate in gameDates)
-                {
-                    var response = await _httpService.GetAsync<RapidApiGames>(
-                        $"https://api-nba-v1.p.rapidapi.com/games/date/{gameDate}",
-                        new Dictionary<string, string>
-                        {
-                            {"x-rapidapi-key", "052d7c2822msh1effd682c0dbce0p113fabjsn219fbe03967c"},
-                            {"x-rapidapi-host", "api-nba-v1.p.rapidapi.com"}
-                        });
-                    games.AddRange(response.Api.games.Where(_ => ToStringDayDate(_.startTimeUTC, easternZone) == dayOfGamesToGet));
-                }
-
-                if (!games.Any())
-                {
-                    return StatusCode(403, $"No Game Found for {dayOfGamesToGet}");
-                }
-
-                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState != ContestState.Finished);
-
-                if (contest == null)
-                {
-                    return StatusCode(403, "No contest Found");
-                }
-
-                var dbGames = new List<Game>();
-                foreach (var game in games)
-                {
-                    dbGames.Add(new Game
-                    {
-                        ContestId = contest.Id,
-                        HTeamId = game.hTeam.teamId,
-                        VTeamId = game.vTeam.teamId,
-                        Id = game.gameId,
-                        StartTime = TimeZoneInfo.ConvertTimeToUtc(game.startTimeUTC),
-                        Finished = false
-                    });
-                }
-
-                var sqlUpdateGame =
-                    string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`game` SET `id` = '{_.Id}' WHERE (`hTeamId` = '{_.HTeamId}' and `vTeamId` = '{_.VTeamId}' and `contestId` = '{_.ContestId}')"));
-
-                var sqlUpdateHomeGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.VTeamId}' and teamLocation = 'Visitor')"));
-                var sqlUpdateVisitorGamePlayer = string.Join(";\r\n", dbGames.Select(_ => $"UPDATE `timkotodb`.`gamePlayer` SET `GameId` = '{_.Id}' WHERE (`contestId` = '{_.ContestId}' and `teamId` = '{_.HTeamId}' and teamLocation = 'Home')"));
-
-                tx = dbSession.BeginTransaction();
-
-                await dbSession.CreateSQLQuery(sqlUpdateGame + ";").ExecuteUpdateAsync();
-                await dbSession.CreateSQLQuery(sqlUpdateHomeGamePlayer + ";").ExecuteUpdateAsync();
-                await dbSession.CreateSQLQuery(sqlUpdateVisitorGamePlayer + ";").ExecuteUpdateAsync();
-
-                await tx.CommitAsync();
-                dbSession.Close();
-                dbSession.Dispose();
-
-                return Ok(true);
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                if (tx != null && tx.IsActive)
-                {
-                    await tx.RollbackAsync();
-                    dbSession.Close();
-                    dbSession.Dispose();
-                }
-
                 logType = LogType.Error;
                 messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
-
 
                 var result = GenericResponse.CreateErrorResponse(ex);
                 result.Data = messages;

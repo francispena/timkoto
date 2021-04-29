@@ -7,6 +7,8 @@ namespace Timkoto.UsersApi.Services.Interfaces
     {
         Task<string> GetLiveStats(List<string> messages);
 
-        Task<string> GetFinalStats(List<string> messages);
+        Task<string> GetLiveStats2(List<string> messages);
+
+        Task<string> UpdateGameIds(List<string> messages);
     }
 }

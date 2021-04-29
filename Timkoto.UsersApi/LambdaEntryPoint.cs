@@ -68,13 +68,35 @@ namespace Timkoto.UsersApi
                 var serviceProvider = Startup.ServiceProvider;
                 var rapidNbaStatistics = serviceProvider.GetService<IRapidNbaStatistics>();
                 
-                var getLiveStats = await rapidNbaStatistics.GetLiveStats(new List<string>());
-                lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
+                var getLiveStats = await rapidNbaStatistics.GetLiveStats2(new List<string>());
+                lambdaContext.Logger.Log($"Get Final Stats Result - {getLiveStats }");
 
                 var contestService = serviceProvider.GetService<IContestService>();
                 var rankTeams = await contestService.RankTeams(new List<string>());
-
                 lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
+                var persistService = serviceProvider.GetService<IPersistService>();
+                var contest = await persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                if (contest == null)
+                {
+                    return new APIGatewayProxyResponse { StatusCode = 200 };
+                }
+
+                var allContestGames = await persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
+                if (allContestGames.Any())
+                {
+                    var allComplete = allContestGames.All(_ => _.Finished == true);
+                    if (allContestGames.Any() && allComplete)
+                    {
+                        var messages = new List<string>();
+                        var _contestService = serviceProvider.GetService<IContestService>();
+                        await _contestService.SetPrizes(messages);
+                        await _contestService.SetPrizesInTransaction(messages);
+                        await _contestService.CreateContest(0, messages);
+                        var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
+                        //await officialNbaStatistics.GetLeagueStats(messages);
+                    }
+                }
 
                 return new APIGatewayProxyResponse {StatusCode = 200};
             }
@@ -93,24 +115,24 @@ namespace Timkoto.UsersApi
                 lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
 
                 //process if all games completed
-                var _persistService = serviceProvider.GetService<IPersistService>();
-                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                var persistService = serviceProvider.GetService<IPersistService>();
+                var contest = await persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
                     return new APIGatewayProxyResponse { StatusCode = 200 };
                 }
 
-                var allContestGames = await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate);
+                var allContestGames = await persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate);
                 if (allContestGames.Any())
                 {
                     var allComplete = allContestGames.All(_ => _.Finished == true);
                     if (allContestGames.Any() && allComplete)
                     {
                         var messages = new List<string>();
-                        var _contestService = serviceProvider.GetService<IContestService>();
-                        await _contestService.SetPrizes(messages);
-                        await _contestService.SetPrizesInTransaction(messages);
-                        await _contestService.CreateContest(0, messages);
+                        await contestService.SetPrizes(messages);
+                        await contestService.SetPrizesInTransaction(messages);
+                        await contestService.CreateContest(0, messages);
+                        //await officialNbaStatistics.GetLeagueStats(messages);
                     }
                 }
 

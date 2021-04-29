@@ -6,5 +6,7 @@ namespace Timkoto.UsersApi.Services.Interfaces
     public interface IOfficialNbaStatistics
     {
         Task<string> GetLiveStats(List<string> messages);
+
+        Task<string> GetLeagueStats(List<string> messages);
     }
 }
