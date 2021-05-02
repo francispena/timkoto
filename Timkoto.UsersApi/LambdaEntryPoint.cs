@@ -37,7 +37,14 @@ namespace Timkoto.UsersApi
         // will be the default and you must make Amazon.Lambda.AspNetCoreServer.APIGatewayHttpApiV2ProxyFunction the base class.
 
         Amazon.Lambda.AspNetCoreServer.APIGatewayProxyFunction
-    {
+        {
+
+        private IServiceProvider _serviceProvider;
+
+        private IContestService _contestService;
+
+        private IPersistService _persistService;
+
         /// <summary>
         /// The builder has configuration, logging and Amazon API Gateway already configured. The startup class
         /// needs to be configured in this method using the UseStartup<>() method.
@@ -47,7 +54,10 @@ namespace Timkoto.UsersApi
         {
             builder
                 .UseStartup<Startup>();
-            
+
+            _serviceProvider = Startup.ServiceProvider;
+            _contestService = _serviceProvider.GetService<IContestService>();
+            _persistService = _serviceProvider.GetService<IPersistService>();
         }
 
         /// <summary>
@@ -65,85 +75,38 @@ namespace Timkoto.UsersApi
         {
             if (request.Resource == "GetLiveStatsRapid")
             {
-                var serviceProvider = Startup.ServiceProvider;
-                var rapidNbaStatistics = serviceProvider.GetService<IRapidNbaStatistics>();
+                var currentHour = DateTime.UtcNow.Hour;
+                if (currentHour >= 4 && currentHour <= 6)
+                {
+                    await GetLiveStatsNba(lambdaContext);
+                    return new APIGatewayProxyResponse { StatusCode = 200 };
+                }
+                else
+                {
+                    await GetLiveStatsRapid(lambdaContext);
+                }
                 
-                var getLiveStats = await rapidNbaStatistics.GetLiveStats2(new List<string>());
-                lambdaContext.Logger.Log($"Get Final Stats Result - {getLiveStats }");
-
-                var contestService = serviceProvider.GetService<IContestService>();
-                var rankTeams = await contestService.RankTeams(new List<string>());
-                lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
-
-                var persistService = serviceProvider.GetService<IPersistService>();
-                var contest = await persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+                var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
                 if (contest == null)
                 {
                     return new APIGatewayProxyResponse { StatusCode = 200 };
                 }
 
-                var allContestGames = await persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
+                var allContestGames = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id);
                 if (allContestGames.Any())
                 {
                     var allComplete = allContestGames.All(_ => _.Finished == true);
                     if (allContestGames.Any() && allComplete)
                     {
-                        var messages = new List<string>();
-                        var _contestService = serviceProvider.GetService<IContestService>();
-                        var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
-
-                        await officialNbaStatistics.GetLiveStats(new List<string>());
-                        lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
-
-                        rankTeams = await contestService.RankTeams(new List<string>());
-                        lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
-
-                        await _contestService.SetPrizes(messages);
-                        await _contestService.SetPrizesInTransaction(messages);
-                        await _contestService.CreateContest(0, messages);
-                        //var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
-                        //await officialNbaStatistics.GetLeagueStats(messages);
+                        await GetLiveStatsNba(lambdaContext);
                     }
                 }
-
                 return new APIGatewayProxyResponse {StatusCode = 200};
             }
 
             if (request.Resource == "GetLiveStatsNba")
             {
-                var serviceProvider = Startup.ServiceProvider;
-                var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
-
-                var getLiveStats = await officialNbaStatistics.GetLiveStats(new List<string>());
-                lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
-
-                var contestService = serviceProvider.GetService<IContestService>();
-                var rankTeams = await contestService.RankTeams(new List<string>());
-
-                lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
-
-                //process if all games completed
-                var persistService = serviceProvider.GetService<IPersistService>();
-                var contest = await persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
-                if (contest == null)
-                {
-                    return new APIGatewayProxyResponse { StatusCode = 200 };
-                }
-
-                var allContestGames = await persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate);
-                if (allContestGames.Any())
-                {
-                    var allComplete = allContestGames.All(_ => _.Finished == true);
-                    if (allContestGames.Any() && allComplete)
-                    {
-                        var messages = new List<string>();
-                        await contestService.SetPrizes(messages);
-                        await contestService.SetPrizesInTransaction(messages);
-                        await contestService.CreateContest(0, messages);
-                        //await officialNbaStatistics.GetLeagueStats(messages);
-                    }
-                }
-
+                await GetLiveStatsNba(lambdaContext);
                 return new APIGatewayProxyResponse { StatusCode = 200 };
             }
 
@@ -169,10 +132,51 @@ namespace Timkoto.UsersApi
                 return new APIGatewayProxyResponse { };
             }
 
-            //Logger.LambdaContext = lambdaContext;
-            //DynamoDataContext.LambdaContext = lambdaContext;
             Startup.LambdaContext = lambdaContext;
             return await base.FunctionHandlerAsync(request, lambdaContext);
+        }
+
+        private async Task GetLiveStatsNba(ILambdaContext lambdaContext)
+        {
+            var officialNbaStatistics = _serviceProvider.GetService<IOfficialNbaStatistics>();
+
+            var getLiveStats = await officialNbaStatistics.GetLiveStats(new List<string>());
+            lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
+
+            var rankTeams = await _contestService.RankTeams(new List<string>());
+
+            lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
+            //process if all games completed
+            var contest = await _persistService.FindOne<Contest>(_ => _.ContestState == ContestState.Ongoing);
+            if (contest == null)
+            {
+                return;
+            }
+
+            var allContestGames = await _persistService.FindMany<OfficialNbaSchedules>(_ => _.GameDate == contest.GameDate);
+            if (allContestGames.Any())
+            {
+                var allComplete = allContestGames.All(_ => _.Finished == true);
+                if (allContestGames.Any() && allComplete)
+                {
+                    var messages = new List<string>();
+                    await _contestService.SetPrizes(messages);
+                    await _contestService.SetPrizesInTransaction(messages);
+                    await _contestService.CreateContest(0, messages);
+                }
+            }
+        }
+
+        private async Task GetLiveStatsRapid(ILambdaContext lambdaContext)
+        {
+            var rapidNbaStatistics = _serviceProvider.GetService<IRapidNbaStatistics>();
+
+            var getLiveStats = await rapidNbaStatistics.GetLiveStats2(new List<string>());
+            lambdaContext.Logger.Log($"Get Final Stats Result - {getLiveStats }");
+
+            var rankTeams = await _contestService.RankTeams(new List<string>());
+            lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
         }
     }
 }

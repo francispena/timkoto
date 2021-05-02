@@ -551,7 +551,8 @@ namespace Timkoto.UsersApi.Services
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues}").ExecuteUpdateAsync();
                 await dbSession.CreateSQLQuery(sqlUpdate).ExecuteUpdateAsync();
                 await dbSession.CreateSQLQuery($"UPDATE `timkotodb`.`contest` SET `contestState` = 'Finished' WHERE(`id` = '{contest.Id}');").ExecuteUpdateAsync();
-
+                await dbSession.CreateSQLQuery($"UPDATE timkotodb.game SET finished = '1' WHERE contestId = '{contest.Id}';").ExecuteUpdateAsync();
+                
                 await tx.CommitAsync();
 
                 return "Success";
