@@ -16,6 +16,6 @@
 
         public decimal Fppg { get; set; }
 
-        public bool Selected { get; set; }
+        public virtual bool Selected { get; set; }
     }
 }

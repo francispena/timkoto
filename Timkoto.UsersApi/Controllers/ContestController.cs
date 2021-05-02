@@ -96,6 +96,7 @@ namespace Timkoto.UsersApi.Controllers
         [HttpPost]
         public async Task<IActionResult> SubmitLineUp([FromBody] LineUpRequest request)
         {
+            //return StatusCode(500, "");
             var member = $"{_className}.SubmitLineUp";
             var messages = new List<string>();
             var logType = LogType.Information;
@@ -203,6 +204,69 @@ namespace Timkoto.UsersApi.Controllers
             {
                 result = await _contestService.TeamHistoryRanks(operatorId, gameDate , messages);
                 messages.AddWithTimeStamp($"_contestService.TeamHistoryRanks - {JsonConvert.SerializeObject(result)}");
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
+
+        [Route("{contestId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetContest([FromRoute] long contestId)
+        {
+            var member = $"{_className}.GetCurrentContest";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            
+            GenericResponse result;
+
+            try
+            {
+                result = await _contestService.GetContest(contestId, messages);
+                messages.AddWithTimeStamp($"_contestService.GetContest - {JsonConvert.SerializeObject(result)}");
+
+                return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
+            }
+            catch (Exception ex)
+            {
+                logType = LogType.Error;
+                messages.AddWithTimeStamp($"{member} exception - {JsonConvert.SerializeObject(ex)}");
+
+                result = GenericResponse.CreateErrorResponse(ex);
+                return StatusCode(500, result);
+            }
+            finally
+            {
+                _logger.Log(member, messages, logType);
+            }
+        }
+
+        [Route("PlayersForUpdate/{contestId}/{playerTeamId}")]
+        [HttpGet]
+        public async Task<IActionResult> GetPlayersForUpdate([FromRoute] long contestId, [FromRoute] long playerTeamId)
+        {
+            var member = $"{_className}.GetPlayers";
+            var messages = new List<string>();
+            var logType = LogType.Information;
+            messages.AddWithTimeStamp($"{member} request - contestId:{contestId}");
+
+            GenericResponse result;
+
+            try
+            {
+                result = await _contestService.GetPlayersForUpdate(contestId, playerTeamId, messages);
+                messages.AddWithTimeStamp($"_contestService.GetPlayers - {JsonConvert.SerializeObject(result)}");
 
                 return result.ResponseCode == HttpStatusCode.OK ? Ok(result) : StatusCode(403, result);
             }

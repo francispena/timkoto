@@ -90,10 +90,18 @@ namespace Timkoto.UsersApi
                     {
                         var messages = new List<string>();
                         var _contestService = serviceProvider.GetService<IContestService>();
+                        var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
+
+                        await officialNbaStatistics.GetLiveStats(new List<string>());
+                        lambdaContext.Logger.Log($"Get Live Stats Result - {getLiveStats }");
+
+                        rankTeams = await contestService.RankTeams(new List<string>());
+                        lambdaContext.Logger.Log($"Rank Teams Result - {rankTeams}");
+
                         await _contestService.SetPrizes(messages);
                         await _contestService.SetPrizesInTransaction(messages);
                         await _contestService.CreateContest(0, messages);
-                        var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
+                        //var officialNbaStatistics = serviceProvider.GetService<IOfficialNbaStatistics>();
                         //await officialNbaStatistics.GetLeagueStats(messages);
                     }
                 }

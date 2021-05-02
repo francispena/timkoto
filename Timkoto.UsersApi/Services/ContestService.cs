@@ -39,7 +39,7 @@ namespace Timkoto.UsersApi.Services
 
             var sqlQuery =
                 $@"SELECT  ht.fullName as homeTeamName, ht.nickname as homeTeamNickName, vt.fullName as visitorTeamName, vt.nickname as visitorTeamNickName, 
-                    date_format(convert_tz(g.startTime , '+00:00', '+08:00'),'%h:%i') as startTime, ht.logo as homeTeamLogo, vt.logo as visitorTeamLogo FROM timkotodb.game g 
+                    date_format(convert_tz(g.startTime , '+00:00', '+08:00'),'%l:%i %p') as startTime, ht.logo as homeTeamLogo, vt.logo as visitorTeamLogo FROM timkotodb.game g 
                     inner join nbaTeam ht
                     on ht.id = g.hteamid
                     inner join nbaTeam vt
@@ -74,7 +74,7 @@ namespace Timkoto.UsersApi.Services
                         on gp.playerId = np.id
                         inner join nbaTeam nt 
                         on nt.id = np.teamId 
-                        where np.season = '2020' and gp.contestId = '{contestId}';";
+                        where np.season = '2020' and np.position != 'XX' and gp.contestId = '{contestId}';";
 
             var players = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
 
@@ -90,7 +90,7 @@ namespace Timkoto.UsersApi.Services
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
 
             var groupedPlayers = players.GroupBy(_ => _.Position).Select(g =>
-                new {Position = g.Key, Players = g.ToList().OrderByDescending(_ => _.Salary).ToList()}).ToList();
+                new { Position = g.Key, Players = g.ToList().OrderByDescending(_ => _.Salary).ToList() }).ToList();
 
             genericResponse.Data = groupedPlayers.OrderByDescending(_ => _.Position).ToList();
 
@@ -108,7 +108,7 @@ namespace Timkoto.UsersApi.Services
 
             foreach (var playerLineUp in request.LineUp)
             {
-                if (playerLineUp.Players.Count(_ => _.Selected) > (playerLineUp.Position != "C" ? 2: 1) )
+                if (playerLineUp.Players.Count(_ => _.Selected) > (playerLineUp.Position != "C" ? 2 : 1))
                 {
                     return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidNumberOfPlayersInPosition);
                 }
@@ -157,6 +157,15 @@ namespace Timkoto.UsersApi.Services
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.TeamSubmissionNotAccepted);
             }
 
+            var sqlCountTeams = $"SELECT count(*) teamCount FROM timkotodb.playerTeam where contestId = {contest.Id}";
+
+            var playerTeamsCount = await _persistService.SqlQuery<PlayerTeamsCount>(sqlCountTeams);
+
+            if (playerTeamsCount != null && playerTeamsCount.Any() && playerTeamsCount.First().TeamCount > 100)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.LimitReached);
+            }
+
             var isUpdate = request.LineUpTeam.PlayerTeamId > 0;
 
             var hash = string.Join("-",
@@ -172,7 +181,7 @@ namespace Timkoto.UsersApi.Services
             var contestPackages = await _persistService.SqlQuery<ContestPackage>(sqlQuery);
 
             var contestPackage = contestPackages?.FirstOrDefault();
-            if (contestPackage == null )
+            if (contestPackage == null)
             {
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ContestPackageNotAssigned);
             }
@@ -206,11 +215,17 @@ namespace Timkoto.UsersApi.Services
 
                     await dbSession.DeleteAsync(existingPlayerTeam);
 
-                    await dbSession
-                        .CreateSQLQuery(
-                            "DELETE FROM `timkotodb`.`playerLineup` WHERE (`playerTeamId` = :playerTeamId);")
+                    var deleteLineUpResult = await dbSession
+                        .CreateSQLQuery("DELETE FROM `timkotodb`.`playerLineup` WHERE (`playerTeamId` = :playerTeamId);")
                         .SetParameter("playerTeamId", request.LineUpTeam.PlayerTeamId)
                         .ExecuteUpdateAsync();
+
+                    if (deleteLineUpResult <= 0)
+                    {
+                        await tx.RollbackAsync();
+
+                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ProcessingTransactionFailed);
+                    }
                 }
 
                 var saveTeamResult = await dbSession.SaveAsync(playerTeam);
@@ -224,7 +239,23 @@ namespace Timkoto.UsersApi.Services
                             request.LineUp.SelectMany(_ => _.Players).Where(_ => _.Selected).Select(_ =>
                                 $"({request.LineUpTeam.OperatorId}, {request.LineUpTeam.ContestId}, {request.LineUpTeam.UserId}, {playerTeam.Id}, {_.PlayerId})"));
 
-                    await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
+                    var insertLineUpResult = await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues};").ExecuteUpdateAsync();
+
+                    if (insertLineUpResult <= 0)
+                    {
+                        await tx.RollbackAsync();
+
+                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ProcessingTransactionFailed);
+                    }
+                }
+                else
+                {
+                    if ((long)saveTeamResult <= 0)
+                    {
+                        await tx.RollbackAsync();
+
+                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ProcessingTransactionFailed);
+                    }
                 }
 
                 if (!isUpdate)
@@ -253,7 +284,8 @@ namespace Timkoto.UsersApi.Services
                         UserType = UserType.Player,
                         TransactionType = TransactionType.WalletCredit,
                         UserId = request.LineUpTeam.UserId,
-                        Balance = lastTransaction.Balance + -contestPackage.EntryPoints
+                        Balance = lastTransaction.Balance + -contestPackage.EntryPoints,
+                        Tag = "Contest Entry"
                     };
 
                     var saveTransactionResult = await dbSession.SaveAsync(newTransaction);
@@ -262,18 +294,16 @@ namespace Timkoto.UsersApi.Services
                     {
                         await tx.RollbackAsync();
 
-                        return GenericResponse.Create(false, HttpStatusCode.Forbidden,
-                            Results.ProcessingTransactionFailed);
+                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ProcessingTransactionFailed);
                     }
 
-                    var updateResult =  await dbSession.CreateSQLQuery($"UPDATE `timkotodb`.`user` SET `points` = '{newTransaction.Balance}' WHERE (`id` = '{newTransaction.UserId}');").ExecuteUpdateAsync();
+                    var updateResult = await dbSession.CreateSQLQuery($"UPDATE `timkotodb`.`user` SET `points` = '{newTransaction.Balance}' WHERE (`id` = '{newTransaction.UserId}');").ExecuteUpdateAsync();
 
                     if (updateResult <= 0)
                     {
                         await tx.RollbackAsync();
 
-                        return GenericResponse.Create(false, HttpStatusCode.Forbidden,
-                            Results.ProcessingTransactionFailed);
+                        return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.ProcessingTransactionFailed);
                     }
                 }
 
@@ -282,7 +312,25 @@ namespace Timkoto.UsersApi.Services
                 dbSession.Close();
                 dbSession.Dispose();
 
-                return GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerLineUpCreated);
+                var response = GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerLineUpCreated);
+
+                if (isUpdate)
+                {
+                    sqlQuery =
+                        $@"SELECT pt.Id, pt.contestId, c.gameDate, pt.teamName, pt.score, pt.teamRank, pt.prize, c.contestState 
+                    FROM timkotodb.playerTeam pt
+                    inner join contest c
+                    on c.Id = pt.contestId
+                    where pt.id ='{saveTeamResult}';";
+
+                    var playerTeamHistory = await _persistService.SqlQuery<PlayerTeamHistory>(sqlQuery);
+                    if (playerTeamHistory != null && playerTeamHistory.Any())
+                    {
+                        response.Data = new { playerTeamHistory = playerTeamHistory.FirstOrDefault() };
+                    }
+                }
+
+                return response;
             }
             catch (Exception ex)
             {
@@ -290,6 +338,9 @@ namespace Timkoto.UsersApi.Services
                 {
                     await tx.RollbackAsync();
                 }
+
+                messages.AddWithTimeStamp($"SubmitLineUp exception - {ex.Message}");
+                messages.AddWithTimeStamp($"SubmitLineUp stack trace - {ex.StackTrace}");
 
                 return GenericResponse.Create(false, HttpStatusCode.Forbidden,
                     Results.ProcessingTransactionFailed);
@@ -324,7 +375,7 @@ namespace Timkoto.UsersApi.Services
 
                 //group by operatorId
                 var groupedTeamsByOperatorId = teamPoints.GroupBy(_ => _.OperatorId)
-                    .Select(g => new {OperatorId = g.Key, TeamsToSetPrize = g.ToList()}).ToList();
+                    .Select(g => new { OperatorId = g.Key, TeamsToSetPrize = g.ToList() }).ToList();
 
                 var teamPointsToUpdate = new List<TeamPoints>();
                 var actualPrizePools = new List<ActualPrizePool>();
@@ -332,8 +383,8 @@ namespace Timkoto.UsersApi.Services
                 //process by operatorId
                 foreach (var groupedTeamPoint in groupedTeamsByOperatorId)
                 {
-                   sqlQuery =
-                        $@"SELECT c.id as contestId, pp.id, fromRank, toRank, prize FROM timkotodb.contest c 
+                    sqlQuery =
+                         $@"SELECT c.id as contestId, pp.id, fromRank, toRank, prize FROM timkotodb.contest c 
                             inner join timkotodb.contestPool cp
                             on cp.contestId = c.id
                             inner join timkotodb.prizePool pp
@@ -368,11 +419,11 @@ namespace Timkoto.UsersApi.Services
                         }
                     }
 
-                    var packageTotal = prizeQueue.ToArray().Sum(_ => (decimal) _);
+                    var packageTotal = prizeQueue.ToArray().Sum(_ => (decimal)_);
 
                     //group by rank
                     var groupedTeamRank = groupedTeamPoint.TeamsToSetPrize.GroupBy(_ => _.TeamRank)
-                        .Select(g => new {TeamRank = g.Key, RanksToPrize = g.ToList()}).ToList();
+                        .Select(g => new { TeamRank = g.Key, RanksToPrize = g.ToList() }).ToList();
 
                     //loop through each rank group
                     foreach (var teamRank in groupedTeamRank.OrderBy(_ => _.TeamRank).ToList())
@@ -422,7 +473,7 @@ namespace Timkoto.UsersApi.Services
                     teamPointsToUpdate.Select(_ =>
                         $"UPDATE `timkotodb`.`playerTeam` SET `prize` = '{_.Prize}' WHERE (`id` = '{_.PlayerTeamId}');"));
 
-                
+
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues}").ExecuteUpdateAsync();
@@ -487,27 +538,27 @@ namespace Timkoto.UsersApi.Services
 
                 //update balance in user table
                 var sqlUpdate = string.Join(" ", teamPoints.Select(_ => $"UPDATE `timkotodb`.`user` SET `points` = '{_.Points + _.Prize}' WHERE (`id` = '{_.UserId}');"));
-                
+
                 //insert into transaction
                 var sqlInsert =
                     "INSERT INTO `timkotodb`.`transaction` (`operatorId`, `agentId`, `userId`, `userType`, `transactionType`, `amount`, `balance`, `tag`) VALUES ";
                 var sqlValues =
                     string.Join(",",
                         teamPoints.Select(_ => $"('{_.OperatorId}', '{_.AgentId}', '{_.UserId}', 'Player', 'WalletDebit', '{_.Prize}', '{_.Points + _.Prize}', '{contest.GameDate} - Prize Won')"));
-                
+
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery($"{sqlInsert} {sqlValues}").ExecuteUpdateAsync();
                 await dbSession.CreateSQLQuery(sqlUpdate).ExecuteUpdateAsync();
                 await dbSession.CreateSQLQuery($"UPDATE `timkotodb`.`contest` SET `contestState` = 'Finished' WHERE(`id` = '{contest.Id}');").ExecuteUpdateAsync();
-                
+
                 await tx.CommitAsync();
 
                 return "Success";
             }
             catch (Exception ex)
             {
-                if (tx != null &&  tx.IsActive)
+                if (tx != null && tx.IsActive)
                 {
                     await tx.RollbackAsync();
                 }
@@ -632,7 +683,7 @@ namespace Timkoto.UsersApi.Services
                 }
 
                 var factor = .7m;
-                var pointsToAdd =  Math.Min(grossPoints * (1m - agentCommssionPercent) * factor, 31000m) - packagePoints;
+                var pointsToAdd = Math.Min(grossPoints * (1m - agentCommssionPercent) * factor, 31000m) - packagePoints;
                 if (pointsToAdd > 0)
                 {
                     foreach (var prize in contestPrizePool)
@@ -655,7 +706,7 @@ namespace Timkoto.UsersApi.Services
                 var expenses = (grossPoints * agentCommssionPercent) + packagePoints + operationsCost;
 
                 var netPoints = grossPoints - expenses;
-            
+
                 if (netPoints > 100)
                 {
                     var addPoints = netPoints * 0.1m;
@@ -806,7 +857,7 @@ namespace Timkoto.UsersApi.Services
 
         public async Task<string> CreateContest(int offsetDays, List<string> messages)
         {
-            
+
             ITransaction tx = null;
 
             try
@@ -971,16 +1022,77 @@ namespace Timkoto.UsersApi.Services
                 }
 
                 messages.AddWithTimeStamp($"CreateContest exception - {JsonConvert.SerializeObject(ex)}");
-                
+
                 return ex.Message;
             }
             finally
             {
-                if (tx != null )
+                if (tx != null)
                 {
                     tx.Dispose();
                 }
             }
+        }
+
+        public async Task<GenericResponse> GetContest(long contestId, List<string> messages)
+        {
+            var contest = await _persistService.FindOne<Contest>(_ => _.Id == contestId);
+            if (contest == null)
+            {
+                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.InvalidContestId);
+            }
+
+            var genericResponse = GenericResponse.Create(true, HttpStatusCode.OK, Results.ContestFound);
+
+            genericResponse.Data = new
+            {
+                Contest = contest
+            };
+
+            return genericResponse;
+        }
+
+        public async Task<GenericResponse> GetPlayersForUpdate(long contestId, long playerTeamId, List<string> messages)
+        {
+            GenericResponse genericResponse;
+
+            var sqlQuery =
+                $@"SELECT np.id as playerId, concat(lastName, ', ', firstName) as playerName, np.jersey, nt.nickName as team, np.position, gp.salary, np.fppg FROM timkotodb.gamePlayer gp 
+                        inner join nbaPlayer np
+                        on gp.playerId = np.id
+                        inner join nbaTeam nt 
+                        on nt.id = np.teamId 
+                        where np.season = '2020' and np.position != 'XX' and gp.contestId = '{contestId}';";
+
+            var players = await _persistService.SqlQuery<ContestPlayer>(sqlQuery);
+
+            if (players == null || !players.Any())
+            {
+                genericResponse =
+                    GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.NoPlayerFound);
+
+                return genericResponse;
+            }
+
+            var teamPlayers = await _persistService.FindMany<PlayerLineup>(_ => _.PlayerTeamId == playerTeamId);
+
+            var playerIds = teamPlayers.Select(_ => _.PlayerId);
+
+            foreach (var lineup in players.Where(_ => playerIds.Contains(_.PlayerId)))
+            {
+                lineup.Selected = true;
+            }
+            //var selected = players.Where(_ => _.Selected);
+
+            genericResponse =
+                GenericResponse.Create(true, HttpStatusCode.OK, Results.PlayerFound);
+
+            var groupedPlayers = players.GroupBy(_ => _.Position).Select(g =>
+                new { Position = g.Key, Players = g.ToList().OrderByDescending(_ => _.Salary).ToList() }).ToList();
+
+            genericResponse.Data = groupedPlayers.OrderByDescending(_ => _.Position).ToList();
+
+            return genericResponse;
         }
 
         private string ToStringDayDate(DateTime dateNoTimeZone, TimeZoneInfo easternZone)

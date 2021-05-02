@@ -365,13 +365,16 @@ namespace Timkoto.UsersApi.Services
 
                 var valuesSql = string.Join(",", response.resultSets[0].rowSet.Select(_ => $"('{(long)_[0]}', '{((string)_[1]).Replace("'","''")}', '{(long)_[2]}', '{(string)_[3]}', '{(double)_[31]}', '{(long)_[60]}')"));
 
+                return $"{insertSql}{valuesSql}";
+
                 var dbSession = _persistService.GetSession();
 
                 tx = dbSession.BeginTransaction();
 
                 await dbSession.CreateSQLQuery("TRUNCATE `timkotodb`.`officialNbaLeagueStats`").ExecuteUpdateAsync();
                 messages.AddWithTimeStamp("TRUNCATE `timkotodb`.`officialNbaLeagueStats`");
-
+                
+                
                 await dbSession.CreateSQLQuery($"{insertSql}{valuesSql}").ExecuteUpdateAsync();
                 messages.AddWithTimeStamp("{insertSql}{valuesSql}");
 

@@ -30,5 +30,9 @@ namespace Timkoto.UsersApi.Services.Interfaces
         Task<string> SetPrizesInTransaction(List<string> messages);
 
         Task<string> CreateContest(int offsetDays, List<string> messages);
+
+        Task<GenericResponse> GetContest(long contestId, List<string> messages);
+
+        Task<GenericResponse> GetPlayersForUpdate(long contestId, long playerTeamId, List<string> messages);
     }
 }

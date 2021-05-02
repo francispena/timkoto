@@ -124,9 +124,9 @@ namespace Timkoto.UsersApi.Controllers
 
         [Route("TeamHistory/{userId}")]
         [HttpGet]
-        public async Task<IActionResult> AllTeams([FromRoute] long userId)
+        public async Task<IActionResult> TeamHistory([FromRoute] long userId)
         {
-            var member = $"{_className}.AllTeams";
+            var member = $"{_className}.TeamHistory";
             var messages = new List<string>();
             var logType = LogType.Information;
             messages.AddWithTimeStamp($"{member} request - userId:{userId}");

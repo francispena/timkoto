@@ -146,7 +146,7 @@ namespace Timkoto.UsersApi.Services
             var genericResponse = new GenericResponse();
 
             var sqlQuery =
-                $@"SELECT pt.Id, pt.contestId, c.gameDate, pt.teamName, pt.score, pt.teamRank, pt.prize 
+                $@"SELECT pt.Id, pt.contestId, c.gameDate, pt.teamName, pt.score, pt.teamRank, pt.prize, c.contestState 
                     FROM timkotodb.playerTeam pt
                     inner join contest c
                     on c.Id = pt.contestId
@@ -170,7 +170,7 @@ namespace Timkoto.UsersApi.Services
             genericResponse =
                 GenericResponse.Create(true, HttpStatusCode.OK, Results.TeamsFound);
 
-            genericResponse.Data = new { PlayerTeams = playerTeamHistory.OrderByDescending(_ => _.GameDate).ToList() };
+            genericResponse.Data = new { PlayerTeams = playerTeamHistory.OrderByDescending(_ => _.Id).ToList() };
 
             return genericResponse;
         }

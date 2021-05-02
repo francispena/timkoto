@@ -15,6 +15,8 @@
         public int TeamRank { get; set; }
 
         public decimal Prize { get; set; }
-        
+
+        public string ContestState { get; set; }
+
     }
 }

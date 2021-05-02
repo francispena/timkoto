@@ -181,6 +181,10 @@ namespace Timkoto.UsersApi.Models
                     return "New user created with activation required.";
                 case Results.AccountIsNotYetActivated:
                     return "Account is not yet activated.";
+                case Results.ContestFound:
+                    return "Contest found.";
+                case Results.LimitReached:
+                    return "Sorry, maximum number of entries reached. Only 100 entries are allowed in this contest. Please try again tomorrow.";
             }
 
             return "";

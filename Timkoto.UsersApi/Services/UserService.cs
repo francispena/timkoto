@@ -95,6 +95,9 @@ namespace Timkoto.UsersApi.Services
                 {
                     if (registrationCode.AgentId == promoAgentId)
                     {
+                        var activationLink = $"{configuration["ActivationLink"]}?code={accessToken}";
+                        await _email.SendActivationLink(request.Email, activationLink, request.UserName, messages);
+
                         genericResponse =
                             GenericResponse.Create(true, HttpStatusCode.OK, Results.NewUserCreatedActivationRequired);
                     }
@@ -119,12 +122,6 @@ namespace Timkoto.UsersApi.Services
             {
                 genericResponse =
                     GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.EmailAddressExists);
-            }
-
-            if (registrationCode.AgentId == promoAgentId)
-            {
-                var activationLink = $"{configuration["ActivationLink"]}?code={accessToken}";
-                await _email.SendActivationLink(request.Email, activationLink, request.UserName, messages);
             }
 
             return genericResponse;

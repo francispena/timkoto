@@ -72,6 +72,8 @@
         AccountActivationSucceeded,
         AccountNotYetActivated,
         NewUserCreatedActivationRequired,
-        AccountIsNotYetActivated
+        AccountIsNotYetActivated,
+        ContestFound,
+        LimitReached
     }
 }
