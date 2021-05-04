@@ -149,18 +149,27 @@ namespace Timkoto.UsersApi.Services
                     return "No ongoing contest";
                 }
 
-                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false);
+                //var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false);
+                //if (!games.Any())
+                //{
+                //    return "No game schedule";
+                //}
+
+                //var firstGameTime = games.OrderBy(_ => _.StartTime).First();
+
+                //if (contest.ContestState == ContestState.Upcoming && firstGameTime.StartTime.Subtract(DateTime.UtcNow).TotalHours < 1)
+                //{
+                //    await UpdateGameIds(messages);
+                //}
+
+                var games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false && _.StartTime < DateTime.UtcNow);
+
                 if (!games.Any())
                 {
                     return "No game schedule";
                 }
 
-                var firstGameTime = games.OrderBy(_ => _.StartTime).First();
-                
-                if (contest.ContestState == ContestState.Upcoming && firstGameTime.StartTime.Subtract(DateTime.UtcNow).TotalHours < 1)
-                {
-                    await UpdateGameIds(messages);
-                }
+                await UpdateGameIds(messages);
 
                 games = await _persistService.FindMany<Game>(_ => _.ContestId == contest.Id && _.Finished == false && _.StartTime < DateTime.UtcNow);
 

@@ -47,7 +47,7 @@ namespace Timkoto.UsersApi.Extensions
                 configuration.AddInputStream(s);
             }
 
-            //UpdateSchema(configuration);
+            UpdateSchema(configuration);
 
             var sessionFactory = configuration.BuildSessionFactory();
 

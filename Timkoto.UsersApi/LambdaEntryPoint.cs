@@ -55,9 +55,6 @@ namespace Timkoto.UsersApi
             builder
                 .UseStartup<Startup>();
 
-            _serviceProvider = Startup.ServiceProvider;
-            _contestService = _serviceProvider.GetService<IContestService>();
-            _persistService = _serviceProvider.GetService<IPersistService>();
         }
 
         /// <summary>
@@ -73,6 +70,10 @@ namespace Timkoto.UsersApi
 
         public override async Task<APIGatewayProxyResponse> FunctionHandlerAsync(APIGatewayProxyRequest request, ILambdaContext lambdaContext)
         {
+            _serviceProvider = Startup.ServiceProvider;
+            _contestService = _serviceProvider.GetService<IContestService>();
+            _persistService = _serviceProvider.GetService<IPersistService>();
+
             if (request.Resource == "GetLiveStatsRapid")
             {
                 var currentHour = DateTime.UtcNow.Hour;

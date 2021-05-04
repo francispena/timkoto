@@ -833,12 +833,12 @@ namespace Timkoto.UsersApi.Services
             }
 
             var sqlQuery =
-                $@"select userName, teamName, score, teamRank, prize from timkotodb.contest c
+                $@"select pt.id as playerTeamId, userName, teamName, score, teamRank, prize from timkotodb.contest c
                         inner join timkotodb.playerTeam pt
                         on pt.contestId = c.id
                         inner join timkotodb.user u
                         on u.id = pt.userId
-                        where c.id = '{contest.Id}' and pt.operatorId = '{operatorId}' and teamRank > '0';";
+                        where c.id = '{contest.Id}' and pt.operatorId = '{operatorId}' and teamRank > '0' and c.contestState = 'Finished';";
 
             var teamRankPrizes = await _persistService.SqlQuery<TeamRankPrize>(sqlQuery);
 
