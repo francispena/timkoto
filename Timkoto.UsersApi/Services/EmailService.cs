@@ -136,6 +136,7 @@ namespace Timkoto.UsersApi.Services
                        "<br>" +
                        $"<p><a href='{activationLink}'>{activationLink}</a></p>" +
                        "<br>" +
+                       $"<p><a href='https://timkoto.com'>Login</a></p>" +
                        "<p>If the link doesn't work, copy the link and paste it into your browser's address bar.</p>" +
                        "<p>Please do not reply directly to this email. Should you have any questions or clarifications please message us in Facebook Timkoto page.</p>" +
                        "<br>" +

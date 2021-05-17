@@ -164,7 +164,7 @@ namespace Timkoto.UsersApi
                     var messages = new List<string>();
                     await _contestService.SetPrizes(messages);
                     await _contestService.SetPrizesInTransaction(messages);
-                    await _contestService.CreateContest(0, messages);
+                    //await _contestService.CreateContest(0, messages);
                 }
             }
         }

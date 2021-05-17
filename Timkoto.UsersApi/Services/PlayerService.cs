@@ -192,7 +192,14 @@ namespace Timkoto.UsersApi.Services
 
             if (prizePool?.Data?.PrizePool == null)
             {
-                return GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
+                genericResponse = GenericResponse.Create(false, HttpStatusCode.Forbidden, Results.PrizePoolNotSet);
+
+                genericResponse.Data = new
+                {
+                    balance.Data.Balance
+                };
+
+                return genericResponse;
             }
 
             foreach (var prizes in prizePool.Data.PrizePool)
