@@ -375,7 +375,7 @@ namespace Timkoto.UsersApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetOfficialNbaSchedule()
         {
-            return Ok();
+            //return Ok();
             var member = $"{_className}.GetOfficialNbaSchedule";
             var messages = new List<string>();
             var logType = LogType.Information;
@@ -398,6 +398,10 @@ namespace Timkoto.UsersApi.Controllers
                     if (DateTime.TryParseExact(leagueScheduleGameDate.gameDate, "M/d/yyyy h:mm:ss tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out var gameDate) &&
                         gameDate > DateTime.Now.AddDays(-1))
                     {
+                        if (gameDate.ToString("yyyy-MM-dd") != "2021-05-22")
+                        {
+                            continue;
+                        }
                         foreach (var officialNbaGame in leagueScheduleGameDate.games)
                         {
                             var officialNbaSchedules = new OfficialNbaSchedules();
